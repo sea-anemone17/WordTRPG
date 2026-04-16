@@ -1,5 +1,4 @@
-export const closedCorridorScenarios = [
-  {
+export const closedCorridorScenario = {
     id: "closed_corridor_loop",
     title: "닫힌 복도에서",
     intro:
@@ -265,5 +264,4 @@ export const closedCorridorScenarios = [
         }
       }
     ]
-  }
-];
+};
