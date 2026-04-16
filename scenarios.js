@@ -8,7 +8,8 @@ export const scenarios = [
     loopConfig: {
       maxTurns: 8,
       clueGoal: 5,
-      mistakeLimit: 4
+      mistakeLimit: 4,
+      minActionsBeforeEnding: 3
     },
 
     endingTexts: {
@@ -20,202 +21,256 @@ export const scenarios = [
         "당신은 결국 기록에 도달했지만, 그 과정에서 너무 많은 의미를 놓쳤다. 진실의 껍데기는 손에 넣었으나, 핵심은 여전히 어둠 속에 남아 있다."
     },
 
+    routeSummaries: {
+      observe:
+        "당신은 공간의 분위기와 정적, 사물의 윤곽 같은 느린 단서들을 오래 붙잡으며 이 장소의 성질을 벗겨 내려고 했다.",
+      trace:
+        "당신은 남겨진 흔적의 흐름과 사소한 변화, 누군가의 행동이 남긴 결을 집요하게 따라가며 사건의 방향을 좇았다.",
+      decode:
+        "당신은 조각난 문장과 반복된 표현, 남겨진 의미의 파편들을 이어 붙이며 기록이 끝내 감추지 못한 핵심에 다가가려 했다."
+    },
+
     actionTypes: [
       {
         id: "observe",
         label: "주변을 살핀다",
-        description:
+
+        descriptionPool: [
           "공간의 분위기, 사물의 윤곽, 오래 남은 자국 같은 것을 읽어내려 시도한다.",
+          "눈앞의 배치와 공기의 정체, 먼지의 결을 천천히 훑으며 이 장소가 어떤 시간을 견뎠는지 짐작해 본다.",
+          "당신은 움직임보다 멈춰 있는 것들에 주목하며, 오래 눌러앉은 인상을 조심스럽게 더듬기 시작한다."
+        ],
+
         preferredTags: ["place", "atmosphere", "quality", "object"],
         preferredPos: ["noun", "adjective"],
 
-        successText:
+        successTextPool: [
           "당신은 공간이 품은 인상을 비교적 정확히 읽어낸다. 이 장소는 단순히 낡은 것이 아니라, 무언가를 오래 감춘 채 방치된 흔적을 품고 있다.",
-        failureText:
+          "당신은 정적 속에 눌린 의미를 붙잡는다. 복도와 벽, 빛과 먼지의 배치는 누군가가 이곳을 오랫동안 비워 두었지만 완전히 잊지는 못했다는 사실을 말하고 있다.",
+          "당신은 사소한 윤곽들 사이에서 이 장소의 성질을 읽어낸다. 단순한 폐허가 아니라, 한동안 의식적으로 닫혀 있던 장소라는 감각이 분명해진다."
+        ],
+
+        failureTextPool: [
           "당신은 공간의 분위기를 붙잡지 못한다. 눈앞의 풍경은 보이지만, 그것이 무엇을 암시하는지는 아직 알 수 없다.",
+          "당신은 오래 남은 인상을 읽으려 했지만, 이 장소는 좀처럼 속내를 드러내지 않는다. 보이는 것은 낡음뿐이고, 그 뒤의 의미는 흐리다.",
+          "당신은 주변을 훑었지만 핵심을 붙잡지 못한다. 복도는 그저 어둡고 조용할 뿐, 무엇이 중요한 신호인지 아직 분간되지 않는다."
+        ],
 
         successJournalPool: [
           "당신은 복도와 벽면에 남은 흔적을 하나의 흐름으로 묶어 보기 시작했다.",
           "당신은 먼지와 정적 속에서 이곳이 오래 닫혀 있었다는 인상을 읽어 냈다.",
-          "당신은 공간이 품은 미묘한 긴장을 비교적 정확히 감지했다."
+          "당신은 공간이 품은 미묘한 긴장을 비교적 정확히 감지했다.",
+          "당신은 보이지 않는 시간이 이 장소에 남긴 결을 천천히 짚어 보기 시작했다."
         ],
+
         failureJournalPool: [
           "당신은 이 공간의 인상을 단순한 낡음으로 넘겨 버렸다.",
           "당신은 주변을 둘러보았지만, 무엇이 중요한 흔적인지는 분간하지 못했다.",
-          "당신은 공간의 분위기를 읽으려 했으나 핵심을 붙잡지 못했다."
+          "당신은 공간의 분위기를 읽으려 했으나 핵심을 붙잡지 못했다.",
+          "당신은 눈에 보이는 것만 보았을 뿐, 오래 남은 의미의 결에는 닿지 못했다."
         ],
 
         choicePool: [
           {
             id: "observe_wall",
             label: "벽면의 자국을 더 살핀다",
-            journalText: "당신은 벽면에 남은 자국과 먼지층을 세심하게 살폈다."
+            journalText: "당신은 벽면에 남은 자국과 먼지층을 세심하게 살폈다.",
+            routeTag: "careful"
           },
           {
             id: "observe_floor",
             label: "바닥에 남은 흔적을 따라간다",
-            journalText: "당신은 바닥에 스친 흔적의 방향을 조심스럽게 따라갔다."
+            journalText: "당신은 바닥에 스친 흔적의 방향을 조심스럽게 따라갔다.",
+            routeTag: "tracking"
           },
           {
             id: "observe_air",
             label: "공기의 정체된 느낌에 집중한다",
-            journalText: "당신은 눈에 보이지 않는 정적과 공기의 흐름을 의식했다."
+            journalText: "당신은 눈에 보이지 않는 정적과 공기의 흐름을 의식했다.",
+            routeTag: "atmospheric"
           },
           {
             id: "observe_light",
             label: "빛이 닿는 범위를 확인한다",
-            journalText: "당신은 희미한 빛이 어디까지 닿는지를 오래 바라보았다."
+            journalText: "당신은 희미한 빛이 어디까지 닿는지를 오래 바라보았다.",
+            routeTag: "careful"
+          },
+          {
+            id: "observe_corner",
+            label: "사각지대와 모서리를 먼저 확인한다",
+            journalText: "당신은 잘 보이지 않는 모서리와 사각지대를 먼저 훑어 보았다.",
+            routeTag: "careful"
           }
-        ]
+        ],
+
+        effects: {
+          success: { clue: 1, routeBias: "observe" },
+          failure: { mistake: 1, routeBias: "observe" }
+        }
       },
 
       {
         id: "trace",
         label: "흔적을 추적한다",
-        description:
+
+        descriptionPool: [
           "누군가의 행동 흔적, 급히 손댄 자국, 이동의 방향 같은 것을 좇는다.",
+          "남겨진 자국이 무엇을 가리키는지, 사라진 것과 옮겨진 것 사이에 어떤 흐름이 있었는지 되짚어 본다.",
+          "당신은 정적인 공간을 하나의 사건 현장처럼 보고, 눈앞의 변화들이 어떤 행위를 암시하는지 따라가려 한다."
+        ],
+
         preferredTags: ["action", "change", "relation", "movement"],
         preferredPos: ["verb"],
 
-        successText:
+        successTextPool: [
           "당신은 흔적의 의미를 제대로 읽어낸다. 누군가는 이 장소에서 무엇인가를 숨기거나 옮기거나 버리려 했고, 그 과정은 결코 여유롭지 않았다.",
-        failureText:
+          "당신은 자국의 방향과 끊긴 흔적의 결을 이어 붙인다. 이곳에서 벌어진 움직임은 단순한 생활의 잔흔이 아니라, 급박하게 감추려 했던 행동의 연쇄였다.",
+          "당신은 남은 흔적을 사건의 흐름으로 묶어 낸다. 무엇이 사라졌는지보다, 그것이 왜 급히 사라져야 했는지가 더 선명해진다."
+        ],
+
+        failureTextPool: [
           "당신은 흔적을 단순한 사용감으로 넘겨 버린다. 누군가의 의도는 있었겠지만, 지금의 당신은 그 결을 이어 붙이지 못한다.",
+          "당신은 표면의 손상만 볼 뿐, 그것이 의미하는 행동의 흐름에는 닿지 못한다. 자국은 남아 있지만 사건은 아직 멀다.",
+          "당신은 변화의 흔적을 포착했으나, 그것을 하나의 움직임으로 묶어내지 못한다. 무엇이 있었는지는 보였지만 왜였는지는 흐리다."
+        ],
 
         successJournalPool: [
           "당신은 누군가의 행동이 급박했다는 사실을 자국의 흐름에서 읽어 냈다.",
           "당신은 사라진 것과 남겨진 것 사이의 불균형을 추적해 냈다.",
-          "당신은 이 장소에서 벌어진 움직임의 방향을 어렴풋이 이어 보았다."
+          "당신은 이 장소에서 벌어진 움직임의 방향을 어렴풋이 이어 보았다.",
+          "당신은 자국들의 흐름이 우연이 아니라 의도된 정리의 결과라는 점을 알아차렸다."
         ],
+
         failureJournalPool: [
           "당신은 흔적을 그저 오래된 생활 자국쯤으로 넘겨 버렸다.",
           "당신은 남은 자국을 보았지만, 그 의도를 따라가지는 못했다.",
-          "당신은 변화의 흔적을 포착했지만 그것을 사건으로 묶어내지 못했다."
+          "당신은 변화의 흔적을 포착했지만 그것을 사건으로 묶어내지 못했다.",
+          "당신은 자국의 방향을 보았지만, 그 급박함까지는 끝내 읽지 못했다."
         ],
 
         choicePool: [
           {
             id: "trace_handle",
             label: "손잡이 주변의 마모를 확인한다",
-            journalText: "당신은 손잡이 주변의 닳은 자국을 세심하게 확인했다."
+            journalText: "당신은 손잡이 주변의 닳은 자국을 세심하게 확인했다.",
+            routeTag: "forensic"
           },
           {
             id: "trace_surface",
             label: "표면에 남은 긁힌 흔적을 짚어 본다",
-            journalText: "당신은 표면을 가른 미세한 긁힘을 손끝으로 더듬었다."
+            journalText: "당신은 표면을 가른 미세한 긁힘을 손끝으로 더듬었다.",
+            routeTag: "forensic"
           },
           {
             id: "trace_direction",
             label: "무엇이 옮겨졌는지 방향을 짐작한다",
-            journalText: "당신은 물건의 배치와 흐트러짐에서 이동 방향을 짐작했다."
+            journalText: "당신은 물건의 배치와 흐트러짐에서 이동 방향을 짐작했다.",
+            routeTag: "tracking"
           },
           {
             id: "trace_pause",
             label: "한 발 물러서 전체 배치를 본다",
-            journalText: "당신은 가까운 흔적보다 전체 배치가 말하는 흐름을 먼저 보았다."
+            journalText: "당신은 가까운 흔적보다 전체 배치가 말하는 흐름을 먼저 보았다.",
+            routeTag: "careful"
+          },
+          {
+            id: "trace_gap",
+            label: "사라진 물건이 있었을 자리를 상상한다",
+            journalText: "당신은 지금 비어 있는 자리가 원래 무엇을 위한 것이었는지 짐작해 보았다.",
+            routeTag: "tracking"
           }
-        ]
+        ],
+
+        effects: {
+          success: { clue: 1, routeBias: "trace" },
+          failure: { mistake: 1, routeBias: "trace" }
+        }
       },
 
       {
         id: "decode",
         label: "기록을 해독한다",
-        description:
+
+        descriptionPool: [
           "남겨진 단어, 문장 조각, 반복되는 표현을 이어 붙여 기록의 중심을 해석하려 한다.",
+          "끊어진 문장 사이의 공백과 되풀이되는 단어들에 주목하며, 기록이 끝내 말하지 못한 부분까지 짐작해 본다.",
+          "당신은 조각난 텍스트를 하나의 이야기처럼 다루며, 지워진 것보다 남겨진 것이 더 많이 말하는지 살피려 한다."
+        ],
+
         preferredTags: ["concept", "emotion", "feeling", "document"],
         preferredPos: ["noun", "adjective"],
 
-        successText:
+        successTextPool: [
           "당신은 조각난 문장의 중심 의미를 붙잡는다. 기록은 사실을 모두 말하지 않지만, 무엇이 지워졌고 무엇이 끝까지 남으려 했는지는 분명히 드러난다.",
-        failureText:
+          "당신은 남겨진 단어들을 하나의 축으로 묶는다. 빠진 부분이 오히려 기록의 중심을 가리키고 있었음을 이제야 이해하게 된다.",
+          "당신은 문장의 표면이 아니라 그 반복과 결핍을 읽어 낸다. 기록은 불완전하지만, 그렇기에 더 선명하게 어떤 침묵을 증언하고 있다."
+        ],
+
+        failureTextPool: [
           "당신은 남겨진 문장 조각을 온전히 묶어내지 못한다. 기록은 눈앞에 있지만, 그 의미는 아직 흩어진 채 남아 있다.",
+          "당신은 단어들을 읽었으나, 그 사이의 빈칸까지는 따라가지 못한다. 문장은 보이지만 사건은 여전히 분절된 채다.",
+          "당신은 기록의 표면만 훑었고 중심은 끝내 흐릿하게 남았다. 조각난 문장은 당신 앞에서 끝내 하나의 뜻으로 응집되지 않는다."
+        ],
 
         successJournalPool: [
           "당신은 끊어진 문장들 사이에서 반복되는 의미의 축을 찾아냈다.",
           "당신은 남은 단어들만으로도 이 기록이 붙들고 있던 핵심을 짐작했다.",
-          "당신은 지워진 부분보다 남겨진 표현이 더 많은 것을 말한다는 사실을 깨달았다."
+          "당신은 지워진 부분보다 남겨진 표현이 더 많은 것을 말한다는 사실을 깨달았다.",
+          "당신은 불완전한 기록이 오히려 무엇을 감추려 했는지를 더 또렷하게 드러낸다는 점을 붙잡았다."
         ],
+
         failureJournalPool: [
           "당신은 문장 조각을 읽었지만, 그 사이의 공백을 메우지 못했다.",
           "당신은 단어들을 보았으나 그것을 하나의 의미로 엮어 내지 못했다.",
-          "당신은 기록의 표면만 훑었고, 중심은 끝내 흐릿하게 남았다."
+          "당신은 기록의 표면만 훑었고, 중심은 끝내 흐릿하게 남았다.",
+          "당신은 빠진 말들을 상상했지만, 그것들이 끝내 하나의 결론으로 이어지지는 않았다."
         ],
 
         choicePool: [
           {
             id: "decode_slow",
             label: "문장을 천천히 이어 읽는다",
-            journalText: "당신은 조급해하지 않고 문장의 결을 천천히 이어 읽었다."
+            journalText: "당신은 조급해하지 않고 문장의 결을 천천히 이어 읽었다.",
+            routeTag: "careful"
           },
           {
             id: "decode_copy",
             label: "핵심만 빠르게 옮겨 적는다",
-            journalText: "당신은 남아 있는 문장의 핵심만 빠르게 옮겨 적었다."
+            journalText: "당신은 남아 있는 문장의 핵심만 빠르게 옮겨 적었다.",
+            routeTag: "practical"
           },
           {
             id: "decode_repeat",
             label: "반복되는 표현에 주목한다",
-            journalText: "당신은 반복되어 남은 표현들이 무엇을 가리키는지 오래 붙잡고 있었다."
+            journalText: "당신은 반복되어 남은 표현들이 무엇을 가리키는지 오래 붙잡고 있었다.",
+            routeTag: "interpretive"
           },
           {
             id: "decode_missing",
             label: "빠진 단어를 상상하며 빈칸을 메운다",
-            journalText: "당신은 지워진 부분에 무엇이 있었을지 조심스럽게 상상해 보았다."
+            journalText: "당신은 지워진 부분에 무엇이 있었을지 조심스럽게 상상해 보았다.",
+            routeTag: "interpretive"
+          },
+          {
+            id: "decode_margin",
+            label: "본문보다 여백의 흔적에 주목한다",
+            journalText: "당신은 문장보다도 여백과 끊긴 부분이 남긴 인상을 오래 들여다보았다.",
+            routeTag: "careful"
           }
-        ]
+        ],
+
+        effects: {
+          success: { clue: 2, routeBias: "decode" },
+          failure: { mistake: 1, routeBias: "decode" }
+        }
       }
     ]
   }
-];          }
-        ]
-      },
-      {
-        id: "scene_2",
-        title: "숨겨진 서랍",
-        description:
-          "작은 서랍이 있는 낡은 탁자를 발견했다. 표면은 거칠고, 손잡이 주변에는 누군가 급히 손댄 듯한 흔적이 남아 있다.",
-        preferredTags: ["action", "change", "relation"],
-        preferredPos: ["verb"],
-        successText:
-          "당신은 흔적의 의미를 제대로 읽어낸다. 누군가는 이 서랍 속 내용을 숨기거나 버리려 했고, 그 과정은 급박했다.",
-        failureText:
-          "당신은 흔적을 단순한 사용감으로 넘겨 버린다. 누군가의 의도는 있었겠지만, 지금의 당신은 그 결을 읽지 못한다.",
-        choices: [
-          {
-            id: "open_drawer",
-            label: "서랍을 열어 기록을 확인한다",
-            journalText: "당신은 서랍을 조심스럽게 열어 안쪽의 종이 조각들을 확인했다."
-          },
-          {
-            id: "step_back",
-            label: "조금 물러서서 주변부터 확인한다",
-            journalText: "당신은 서랍보다도 그 주변의 배치를 먼저 확인했다."
-          }
-        ]
-      },
-      {
-        id: "scene_3",
-        title: "남겨진 기록",
-        description:
-          "접힌 종이 조각 몇 장이 나타난다. 문장은 완전하지 않지만, 남겨진 단어들만으로도 이 장소가 침묵 속에 붙들고 있던 이야기를 짐작할 수 있다.",
-        preferredTags: ["concept", "emotion", "feeling"],
-        preferredPos: ["noun", "adjective"],
-        successText:
-          "당신은 조각난 문장들의 중심 의미를 붙잡는다. 기록은 사실을 모두 말하지 않지만, 무엇이 지워졌는지는 충분히 드러난다.",
-        failureText:
-          "당신은 문장 조각의 의미를 온전히 묶어내지 못한다. 기록은 눈앞에 있지만, 사건은 여전히 흩어진 채 남아 있다.",
-        choices: [
-          {
-            id: "preserve_record",
-            label: "기록을 그대로 보존한다",
-            journalText: "당신은 기록을 함부로 건드리지 않고 보존하기로 했다."
-          },
-          {
-            id: "copy_record",
-            label: "핵심만 빠르게 옮겨 적는다",
-            journalText: "당신은 남아 있는 문장의 핵심만 빠르게 옮겨 적었다."
-          }
-        ]
+];
+        effects: {
+          success: { clue: 2, routeBias: "decode" },
+          failure: { mistake: 1, routeBias: "decode" }
+        }
       }
     ]
   }
