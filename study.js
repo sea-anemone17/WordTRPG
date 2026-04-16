@@ -10,13 +10,14 @@ import {
   setArchiveEditTarget
 } from "./storage.js";
 import { getPosLabel, getToneLabel, getTagLabel } from "./tags.js";
-import { shuffleArray, normalizeText, escapeHtml } from "./utils.js";
+import { normalizeText, escapeHtml, shuffleArray } from "./utils.js";
 
 const studyBookSelect = document.getElementById("studyBookSelect");
 const studySectionSelect = document.getElementById("studySectionSelect");
 
 const startStudyBtn = document.getElementById("startStudyBtn");
 const retryWrongBtn = document.getElementById("retryWrongBtn");
+const favoriteStudyBtn = document.getElementById("favoriteStudyBtn");
 const shuffleStudyBtn = document.getElementById("shuffleStudyBtn");
 
 const studyCard = document.getElementById("studyCard");
@@ -106,6 +107,14 @@ function buildWrongOnlyQueue(sectionId) {
   return shuffleArray(wrongWords);
 }
 
+function buildFavoriteQueue(sectionId) {
+  const data = getData();
+  const favorites = data.words.filter(
+    (word) => word.sectionId === sectionId && word.favorite
+  );
+  return shuffleArray(favorites);
+}
+
 function buildSingleWordQueue(wordId) {
   const data = getData();
   const word = data.words.find((item) => item.id === wordId);
@@ -128,6 +137,8 @@ function loadStudyQueue(mode = "all", payload = null) {
 
   if (mode === "wrong") {
     currentQueue = buildWrongOnlyQueue(sectionId);
+  } else if (mode === "favorite") {
+    currentQueue = buildFavoriteQueue(sectionId);
   } else if (mode === "single" && payload?.wordId) {
     currentQueue = buildSingleWordQueue(payload.wordId);
   } else {
@@ -160,11 +171,14 @@ function renderCurrentWord() {
     .map((tag) => getTagLabel(currentWord.pos, tag))
     .join(", ");
 
+  const favoriteText = currentWord.favorite ? "⭐ 즐겨찾기" : "☆ 일반";
+
   studyCard.innerHTML = `
     <div class="study-word">${escapeHtml(currentWord.word)}</div>
     <div class="study-sub">품사: ${getPosLabel(currentWord.pos)}</div>
     <div class="study-sub">정서값: ${getToneLabel(currentWord.tone)}</div>
     <div class="study-sub">태그: ${escapeHtml(tagText || "없음")}</div>
+    <div class="study-sub">즐겨찾기: ${favoriteText}</div>
     ${currentWord.example ? `<div class="study-sub">예문: ${escapeHtml(currentWord.example)}</div>` : ""}
   `;
 
@@ -212,7 +226,13 @@ function startStudy(mode = "all", payload = null) {
   }
 
   studyLog.innerHTML = "";
-  logMessage(mode === "wrong" ? "오답 복습을 시작했습니다." : "학습을 시작했습니다.");
+  const labelMap = {
+    all: "학습을 시작했습니다.",
+    wrong: "오답 복습을 시작했습니다.",
+    favorite: "즐겨찾기 학습을 시작했습니다.",
+    single: "단일 단어 학습을 시작했습니다."
+  };
+  logMessage(labelMap[mode] || "학습을 시작했습니다.");
   renderCurrentWord();
 }
 
@@ -265,7 +285,11 @@ function renderWrongNote() {
       const meaningsText = (entry.meanings || []).join(" / ");
       return `
         <div class="log-entry">
-          <div><span class="note-word">${escapeHtml(entry.word)}</span> - ${escapeHtml(meaningsText)}</div>
+          <div>
+            <span class="note-word">${escapeHtml(entry.word)}</span>
+            ${entry.favorite ? `<span class="favorite-inline">⭐</span>` : ""}
+            - ${escapeHtml(meaningsText)}
+          </div>
           <div class="muted">오답 ${entry.wrongCount}회 · 정답 ${entry.correctCount}회 · 총 ${entry.totalCount}회</div>
           <div class="action-row">
             <button class="button inline-accent" data-action="retry-one" data-id="${entry.id}">이 단어만 다시</button>
@@ -299,7 +323,11 @@ function renderRecentStudy() {
 
       return `
         <div class="log-entry">
-          <div><strong>${escapeHtml(wordText)}</strong> <span class="${badgeClass}">${badgeText}</span></div>
+          <div>
+            <strong>${escapeHtml(wordText)}</strong>
+            ${record.word?.favorite ? `<span class="favorite-inline">⭐</span>` : ""}
+            <span class="${badgeClass}">${badgeText}</span>
+          </div>
           <div class="muted">입력: ${escapeHtml(record.userAnswer || "(빈 입력)")}</div>
         </div>
       `;
@@ -385,6 +413,10 @@ async function main() {
     startStudy("wrong");
   });
 
+  favoriteStudyBtn.addEventListener("click", () => {
+    startStudy("favorite");
+  });
+
   shuffleStudyBtn.addEventListener("click", () => {
     startStudy(lastMode);
   });
@@ -436,6 +468,9 @@ async function main() {
   renderRecentStudy();
   renderDifficulty();
   renderCurrentWord();
+}
+
+main();  renderCurrentWord();
 }
 
 main();
