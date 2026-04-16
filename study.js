@@ -470,7 +470,4 @@ async function main() {
   renderCurrentWord();
 }
 
-main();  renderCurrentWord();
-}
-
 main();
