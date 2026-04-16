@@ -62,7 +62,7 @@
         <div class="filter-bar">
           <label class="input-group">
             <span>검색</span>
-            <input type="text" id="wordSearchInput" placeholder="단어 / 뜻 / 예문 검색" />
+            <input type="text" id="wordSearchInput" placeholder="단어 / 뜻 / 예문 / 메모 검색" />
           </label>
 
           <label class="input-group">
@@ -96,8 +96,8 @@
           </label>
 
           <label class="input-group">
-            <span>뜻</span>
-            <input type="text" id="meaningInput" placeholder="예: 버리다, 포기하다" required />
+            <span>뜻 (한 줄에 하나씩)</span>
+            <textarea id="meaningsInput" rows="4" placeholder="버리다&#10;포기하다" required></textarea>
           </label>
 
           <label class="input-group">
@@ -110,10 +110,10 @@
             <select id="toneSelect"></select>
           </label>
 
-          <label class="input-group">
-            <span>세부 태그</span>
-            <select id="tagSelect"></select>
-          </label>
+          <div class="input-group">
+            <span>세부 태그 (복수 선택)</span>
+            <div id="tagCheckboxGroup" class="checkbox-group"></div>
+          </div>
 
           <label class="input-group">
             <span>예문</span>
