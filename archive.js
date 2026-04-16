@@ -343,11 +343,12 @@ function handleWordSubmit() {
   const isDuplicate = isDuplicateWordInSection(
     selectedSectionId,
     word,
+    pos,
     editingWordId || null
   );
 
   if (isDuplicate) {
-    alert("같은 섹션에 같은 단어가 이미 있습니다.");
+    alert("같은 섹션에 같은 단어/품사 조합이 이미 있습니다.");
     return;
   }
 
