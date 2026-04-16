@@ -225,14 +225,24 @@ export function deleteSection(sectionId) {
   saveData(data);
 }
 
-export function isDuplicateWordInSection(sectionId, wordText, excludeWordId = null) {
+export function isDuplicateWordInSection(
+  sectionId,
+  wordText,
+  pos,
+  excludeWordId = null
+) {
   const data = getData();
-  const target = normalizeText(wordText);
+  const targetWord = normalizeText(wordText);
+  const targetPos = pos?.trim();
 
   return data.words.some((word) => {
     if (word.sectionId !== sectionId) return false;
     if (excludeWordId && word.id === excludeWordId) return false;
-    return normalizeText(word.word) === target;
+
+    return (
+      normalizeText(word.word) === targetWord &&
+      word.pos === targetPos
+    );
   });
 }
 
