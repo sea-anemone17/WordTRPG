@@ -56,8 +56,13 @@ function resetGameState() {
     currentActionType: null,
     currentWord: null,
     currentChoicePool: [],
+    currentDescriptionText: "",
+    currentSuccessText: "",
+    currentFailureText: "",
     resolvedThisTurn: false,
-    ended: false
+    ended: false,
+    routeCounts: {},
+    choiceRouteCounts: {}
   };
   pendingSubmission = null;
 }
@@ -111,8 +116,32 @@ function getWordsInSection(sectionId) {
 }
 
 function pickRandom(array) {
-  if (!array.length) return null;
+  if (!Array.isArray(array) || array.length === 0) return null;
   return array[Math.floor(Math.random() * array.length)];
+}
+
+function pickTextFromPool(pool, fallback = "") {
+  return pickRandom(pool) || fallback;
+}
+
+function ensureRouteCounter(bucket, key) {
+  if (!key) return;
+  if (typeof bucket[key] !== "number") {
+    bucket[key] = 0;
+  }
+}
+
+function addRouteCount(bucket, key, amount = 1) {
+  if (!key) return;
+  ensureRouteCounter(bucket, key);
+  bucket[key] += amount;
+}
+
+function getTopKey(bucket) {
+  const entries = Object.entries(bucket || {});
+  if (!entries.length) return null;
+  entries.sort((a, b) => b[1] - a[1]);
+  return entries[0][0];
 }
 
 function pickUnusedPreferredWord(actionType, sectionId) {
@@ -184,9 +213,13 @@ function renderSceneChoiceMenu() {
 
   if (gameState.currentActionType) {
     const actionType = gameState.currentActionType;
+    const description =
+      gameState.currentDescriptionText ||
+      pickTextFromPool(actionType.descriptionPool, actionType.description || "");
+
     sceneBox.innerHTML = `
       <h3>${escapeHtml(actionType.label)}</h3>
-      <p>${escapeHtml(actionType.description)}</p>
+      <p>${escapeHtml(description)}</p>
     `;
     return;
   }
@@ -260,6 +293,40 @@ function renderJournal() {
     .join("");
 }
 
+function getEndingLevelText(scenario) {
+  if (gameState.clueCount >= scenario.loopConfig.clueGoal && gameState.mistakeCount <= 1) {
+    return scenario.endingTexts.high;
+  }
+
+  if (gameState.clueCount >= Math.ceil(scenario.loopConfig.clueGoal / 2)) {
+    return scenario.endingTexts.mid;
+  }
+
+  return scenario.endingTexts.low;
+}
+
+function getRouteSummaryText(scenario) {
+  const actionBias = getTopKey(gameState.routeCounts);
+  if (!actionBias) return "";
+
+  return scenario.routeSummaries?.[actionBias] || "";
+}
+
+function getChoiceRouteFlavor() {
+  const topChoiceRoute = getTopKey(gameState.choiceRouteCounts);
+
+  const choiceRouteTexts = {
+    careful: "당신은 여러 순간에서 성급히 단정하기보다, 보이는 것의 결을 오래 들여다보려 했다.",
+    tracking: "당신은 흩어진 자국들 사이의 방향을 놓치지 않으려는 태도로 조사를 이어 갔다.",
+    atmospheric: "당신은 눈에 보이는 사실보다도 공간이 풍기는 미묘한 인상과 긴장을 오래 의식했다.",
+    forensic: "당신은 사소한 자국과 물리적 변화들을 세밀하게 짚어 보며 사건의 흐름을 더듬었다.",
+    interpretive: "당신은 단어와 문장 사이의 간극을 견디며, 남겨진 표현들이 품은 뜻을 끝까지 해석하려 했다.",
+    practical: "당신은 흔적을 오래 감상하기보다 손에 남길 수 있는 핵심을 빠르게 추려 내는 쪽을 택했다."
+  };
+
+  return topChoiceRoute ? choiceRouteTexts[topChoiceRoute] || "" : "";
+}
+
 function renderEnding() {
   if (!gameState.ended) {
     endingBox.classList.add("hidden");
@@ -268,17 +335,15 @@ function renderEnding() {
   }
 
   const scenario = getCurrentScenario();
+  const endingSummary = getEndingLevelText(scenario);
+  const routeSummary = getRouteSummaryText(scenario);
+  const choiceFlavor = getChoiceRouteFlavor();
+
   endingBox.classList.remove("hidden");
-
-  let endingSummary = scenario.endingTexts.low;
-  if (gameState.clueCount >= scenario.loopConfig.clueGoal && gameState.mistakeCount <= 1) {
-    endingSummary = scenario.endingTexts.high;
-  } else if (gameState.clueCount >= Math.ceil(scenario.loopConfig.clueGoal / 2)) {
-    endingSummary = scenario.endingTexts.mid;
-  }
-
   endingText.innerHTML = `
     <p>${escapeHtml(endingSummary)}</p>
+    ${routeSummary ? `<p>${escapeHtml(routeSummary)}</p>` : ""}
+    ${choiceFlavor ? `<p>${escapeHtml(choiceFlavor)}</p>` : ""}
     <hr />
     <p><strong>단서 수:</strong> ${gameState.clueCount}</p>
     <p><strong>오해 수:</strong> ${gameState.mistakeCount}</p>
@@ -313,7 +378,9 @@ function judgeAnswer(userAnswer, meanings) {
 }
 
 function beginInterpretation(userAnswer) {
-  if (!gameState.currentWord || !gameState.currentActionType || gameState.resolvedThisTurn) return;
+  if (!gameState.currentWord || !gameState.currentActionType || gameState.resolvedThisTurn) {
+    return;
+  }
 
   const autoJudgedCorrect = judgeAnswer(userAnswer, gameState.currentWord.meanings);
 
@@ -335,8 +402,18 @@ function beginInterpretation(userAnswer) {
   trpgJudgeConfirmBox.classList.remove("hidden");
 }
 
-function getRandomJournalText(pool) {
-  return pickRandom(pool) || "";
+function applyEffects(effectConfig = {}) {
+  if (typeof effectConfig.clue === "number") {
+    gameState.clueCount += effectConfig.clue;
+  }
+
+  if (typeof effectConfig.mistake === "number") {
+    gameState.mistakeCount += effectConfig.mistake;
+  }
+
+  if (effectConfig.routeBias) {
+    addRouteCount(gameState.routeCounts, effectConfig.routeBias, 1);
+  }
 }
 
 function finalizeInterpretation(finalCorrect) {
@@ -345,17 +422,37 @@ function finalizeInterpretation(finalCorrect) {
   const actionType = gameState.currentActionType;
 
   if (finalCorrect) {
-    gameState.clueCount += 1;
+    const successText =
+      gameState.currentSuccessText ||
+      pickTextFromPool(actionType.successTextPool, actionType.successText || "");
+
     trpgResultBox.innerHTML = `<span class="result-correct">해석 성공 ✅</span>`;
-    gameState.journal.push(actionType.successText);
-    const extra = getRandomJournalText(actionType.successJournalPool || []);
-    if (extra) gameState.journal.push(extra);
+    if (successText) {
+      gameState.journal.push(successText);
+    }
+
+    const extra = pickTextFromPool(actionType.successJournalPool, "");
+    if (extra) {
+      gameState.journal.push(extra);
+    }
+
+    applyEffects(actionType.effects?.success || { clue: 1, routeBias: actionType.id });
   } else {
-    gameState.mistakeCount += 1;
+    const failureText =
+      gameState.currentFailureText ||
+      pickTextFromPool(actionType.failureTextPool, actionType.failureText || "");
+
     trpgResultBox.innerHTML = `<span class="result-wrong">해석 실패 ❌</span>`;
-    gameState.journal.push(actionType.failureText);
-    const extra = getRandomJournalText(actionType.failureJournalPool || []);
-    if (extra) gameState.journal.push(extra);
+    if (failureText) {
+      gameState.journal.push(failureText);
+    }
+
+    const extra = pickTextFromPool(actionType.failureJournalPool, "");
+    if (extra) {
+      gameState.journal.push(extra);
+    }
+
+    applyEffects(actionType.effects?.failure || { mistake: 1, routeBias: actionType.id });
   }
 
   if (!gameState.usedWordIds.includes(gameState.currentWord.id)) {
@@ -381,6 +478,18 @@ function startTurnWithAction(actionTypeId) {
   gameState.currentActionType = actionType;
   gameState.currentWord = pickUnusedPreferredWord(actionType, gameState.sectionId);
   gameState.currentChoicePool = [];
+  gameState.currentDescriptionText = pickTextFromPool(
+    actionType.descriptionPool,
+    actionType.description || ""
+  );
+  gameState.currentSuccessText = pickTextFromPool(
+    actionType.successTextPool,
+    actionType.successText || ""
+  );
+  gameState.currentFailureText = pickTextFromPool(
+    actionType.failureTextPool,
+    actionType.failureText || ""
+  );
   gameState.resolvedThisTurn = false;
   pendingSubmission = null;
 
@@ -399,10 +508,16 @@ function finishTurnWithChoice(choiceId) {
   if (choice?.journalText) {
     gameState.journal.push(choice.journalText);
   }
+  if (choice?.routeTag) {
+    addRouteCount(gameState.choiceRouteCounts, choice.routeTag, 1);
+  }
 
   gameState.currentActionType = null;
   gameState.currentWord = null;
   gameState.currentChoicePool = [];
+  gameState.currentDescriptionText = "";
+  gameState.currentSuccessText = "";
+  gameState.currentFailureText = "";
   gameState.resolvedThisTurn = false;
 
   checkEndingCondition();
@@ -413,19 +528,44 @@ function checkEndingCondition() {
   const scenario = getCurrentScenario();
   if (!scenario) return;
 
-  const { maxTurns, clueGoal, mistakeLimit } = scenario.loopConfig;
+  const { maxTurns, clueGoal, mistakeLimit, minActionsBeforeEnding = 0 } = scenario.loopConfig;
 
+  const enoughTurnsForEnding = gameState.turnCount >= minActionsBeforeEnding;
   const reachedTurnLimit = gameState.turnCount >= maxTurns && !gameState.currentActionType;
-  const reachedClueGoal = gameState.clueCount >= clueGoal;
-  const reachedMistakeLimit = gameState.mistakeCount >= mistakeLimit;
+  const reachedClueGoal = gameState.clueCount >= clueGoal && enoughTurnsForEnding;
+  const reachedMistakeLimit = gameState.mistakeCount >= mistakeLimit && enoughTurnsForEnding;
 
   if (reachedTurnLimit || reachedClueGoal || reachedMistakeLimit) {
     gameState.ended = true;
     gameState.currentActionType = null;
     gameState.currentWord = null;
     gameState.currentChoicePool = [];
+    gameState.currentDescriptionText = "";
+    gameState.currentSuccessText = "";
+    gameState.currentFailureText = "";
     gameState.resolvedThisTurn = false;
   }
+}
+
+function pickUnusedPreferredWord(actionType, sectionId) {
+  const words = getWordsInSection(sectionId);
+  if (!words.length) return null;
+
+  const unusedWords = words.filter((word) => !gameState.usedWordIds.includes(word.id));
+  const candidateBase = unusedWords.length ? unusedWords : words;
+
+  const matched = candidateBase.filter((word) => {
+    const posOk =
+      !actionType.preferredPos?.length || actionType.preferredPos.includes(word.pos);
+
+    const tagOk =
+      !actionType.preferredTags?.length ||
+      (word.tags || []).some((tag) => actionType.preferredTags.includes(tag));
+
+    return posOk && tagOk;
+  });
+
+  return pickRandom(matched.length ? matched : candidateBase);
 }
 
 function startScenario() {
@@ -469,7 +609,9 @@ function attachEvents() {
 
   trpgAnswerForm.addEventListener("submit", (event) => {
     event.preventDefault();
-    if (!gameState.currentWord || pendingSubmission || gameState.resolvedThisTurn || gameState.ended) return;
+    if (!gameState.currentWord || pendingSubmission || gameState.resolvedThisTurn || gameState.ended) {
+      return;
+    }
 
     const userAnswer = trpgAnswerInput.value.trim();
     beginInterpretation(userAnswer);
