@@ -1,4 +1,4 @@
-export const signallosestationScenario = {
+export const signalloststationScenario = {
   id: "signal_lost_station",
   title: "수신 불가 구역",
   intro:
