@@ -9,7 +9,9 @@ import {
   updateWord,
   getWordById,
   deleteWord,
-  isDuplicateWordInSection
+  isDuplicateWordInSection,
+  parseMeanings,
+  consumeArchiveEditTarget
 } from "./storage.js";
 import {
   POS_OPTIONS,
@@ -37,7 +39,7 @@ const selectedSectionInfo = document.getElementById("selectedSectionInfo");
 
 const posSelect = document.getElementById("posSelect");
 const toneSelect = document.getElementById("toneSelect");
-const tagSelect = document.getElementById("tagSelect");
+const tagCheckboxGroup = document.getElementById("tagCheckboxGroup");
 
 const wordSearchInput = document.getElementById("wordSearchInput");
 const wordFilterPos = document.getElementById("wordFilterPos");
@@ -48,6 +50,11 @@ const editingWordIdInput = document.getElementById("editingWordId");
 const wordSubmitBtn = document.getElementById("wordSubmitBtn");
 const cancelEditBtn = document.getElementById("cancelEditBtn");
 
+const wordInput = document.getElementById("wordInput");
+const meaningsInput = document.getElementById("meaningsInput");
+const exampleInput = document.getElementById("exampleInput");
+const memoInput = document.getElementById("memoInput");
+
 function fillSelect(selectElement, options, includeAll = false) {
   const defaultOption = includeAll ? `<option value="">전체</option>` : "";
   selectElement.innerHTML =
@@ -57,14 +64,42 @@ function fillSelect(selectElement, options, includeAll = false) {
       .join("");
 }
 
-function fillTagSelect(pos, selectElement = tagSelect, includeAll = false) {
+function fillTagFilterOptions(pos = "") {
+  if (!pos) {
+    wordFilterTag.innerHTML = `<option value="">전체</option>`;
+    return;
+  }
+
   const options = TAG_OPTIONS[pos] || [];
-  const defaultOption = includeAll ? `<option value="">전체</option>` : "";
-  selectElement.innerHTML =
-    defaultOption +
-    options
-      .map((option) => `<option value="${option.value}">${option.label}</option>`)
-      .join("");
+  wordFilterTag.innerHTML =
+    `<option value="">전체</option>` +
+    options.map((option) => `<option value="${option.value}">${option.label}</option>`).join("");
+}
+
+function renderTagCheckboxes(pos, selectedTags = []) {
+  const options = TAG_OPTIONS[pos] || [];
+  if (!options.length) {
+    tagCheckboxGroup.innerHTML = `<div class="muted">선택 가능한 태그가 없습니다.</div>`;
+    return;
+  }
+
+  tagCheckboxGroup.innerHTML = options
+    .map((option) => {
+      const checked = selectedTags.includes(option.value) ? "checked" : "";
+      return `
+        <label class="checkbox-chip">
+          <input type="checkbox" name="tagCheckbox" value="${option.value}" ${checked} />
+          <span>${option.label}</span>
+        </label>
+      `;
+    })
+    .join("");
+}
+
+function getSelectedTags() {
+  return [...document.querySelectorAll('input[name="tagCheckbox"]:checked')].map(
+    (checkbox) => checkbox.value
+  );
 }
 
 function resetWordForm() {
@@ -72,23 +107,23 @@ function resetWordForm() {
   wordForm.reset();
   fillSelect(posSelect, POS_OPTIONS);
   fillSelect(toneSelect, TONE_OPTIONS);
-  fillTagSelect(posSelect.value);
+  renderTagCheckboxes(posSelect.value);
   wordSubmitBtn.textContent = "단어 추가";
   wordForm.classList.remove("editing-highlight");
 }
 
 function setEditMode(word) {
   editingWordIdInput.value = word.id;
-  document.getElementById("wordInput").value = word.word;
-  document.getElementById("meaningInput").value = word.meaning;
+  wordInput.value = word.word;
+  meaningsInput.value = (word.meanings || []).join("\n");
   posSelect.value = word.pos;
   toneSelect.value = word.tone;
-  fillTagSelect(word.pos);
-  tagSelect.value = word.tags[0] || "";
-  document.getElementById("exampleInput").value = word.example || "";
-  document.getElementById("memoInput").value = word.memo || "";
+  renderTagCheckboxes(word.pos, word.tags || []);
+  exampleInput.value = word.example || "";
+  memoInput.value = word.memo || "";
   wordSubmitBtn.textContent = "단어 수정";
   wordForm.classList.add("editing-highlight");
+  wordInput.focus();
 }
 
 function renderBooks() {
@@ -170,16 +205,18 @@ function getFilteredWords(words) {
   const tagValue = wordFilterTag.value;
 
   return words.filter((word) => {
+    const meaningsText = (word.meanings || []).join(" ").toLowerCase();
+
     const matchesSearch =
       !searchValue ||
       word.word.toLowerCase().includes(searchValue) ||
-      word.meaning.toLowerCase().includes(searchValue) ||
+      meaningsText.includes(searchValue) ||
       (word.example || "").toLowerCase().includes(searchValue) ||
       (word.memo || "").toLowerCase().includes(searchValue);
 
     const matchesPos = !posValue || word.pos === posValue;
     const matchesTone = !toneValue || word.tone === toneValue;
-    const matchesTag = !tagValue || word.tags.includes(tagValue);
+    const matchesTag = !tagValue || (word.tags || []).includes(tagValue);
 
     return matchesSearch && matchesPos && matchesTone && matchesTag;
   });
@@ -207,14 +244,18 @@ function renderWords() {
 
   wordList.innerHTML = filteredWords
     .map((word) => {
-      const tagHtml = word.tags
+      const tagHtml = (word.tags || [])
         .map((tag) => `<span class="tag">${escapeHtml(getTagLabel(word.pos, tag))}</span>`)
+        .join("");
+
+      const meaningsHtml = (word.meanings || [])
+        .map((meaning) => `<li>${escapeHtml(meaning)}</li>`)
         .join("");
 
       return `
         <div class="list-item">
           <strong>${escapeHtml(word.word)}</strong>
-          <div class="word-meta">${escapeHtml(word.meaning)}</div>
+          <ul class="meaning-list">${meaningsHtml}</ul>
           <div class="word-meta">품사: ${getPosLabel(word.pos)} · 정서: ${getToneLabel(word.tone)}</div>
           <div>${tagHtml}</div>
           ${word.example ? `<div class="word-meta">예문: ${escapeHtml(word.example)}</div>` : ""}
@@ -235,18 +276,75 @@ function renderAll() {
   renderWords();
 }
 
+function handleWordSubmit() {
+  if (!selectedBookId || !selectedSectionId) {
+    alert("먼저 책과 섹션을 선택하세요.");
+    return;
+  }
+
+  const editingWordId = editingWordIdInput.value.trim();
+  const word = wordInput.value.trim();
+  const meanings = parseMeanings(meaningsInput.value);
+  const pos = posSelect.value;
+  const tone = toneSelect.value;
+  const tags = getSelectedTags();
+  const example = exampleInput.value;
+  const memo = memoInput.value;
+
+  if (!word || meanings.length === 0) {
+    alert("단어와 뜻을 입력하세요.");
+    return;
+  }
+
+  const isDuplicate = isDuplicateWordInSection(
+    selectedSectionId,
+    word,
+    editingWordId || null
+  );
+
+  if (isDuplicate) {
+    alert("같은 섹션에 같은 단어가 이미 있습니다.");
+    return;
+  }
+
+  const payload = {
+    bookId: selectedBookId,
+    sectionId: selectedSectionId,
+    word,
+    meanings,
+    pos,
+    tone,
+    tags,
+    example,
+    memo
+  };
+
+  if (editingWordId) {
+    updateWord(editingWordId, payload);
+    alert("단어를 수정했습니다.");
+  } else {
+    addWord(payload);
+  }
+
+  resetWordForm();
+  renderAll();
+  wordInput.focus();
+}
+
+function focusMeaningsWhenEnter(event) {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    meaningsInput.focus();
+  }
+}
+
 function attachEvents() {
   posSelect.addEventListener("change", (event) => {
-    fillTagSelect(event.target.value);
+    renderTagCheckboxes(event.target.value);
   });
 
   wordFilterPos.addEventListener("change", () => {
-    const pos = wordFilterPos.value;
-    if (!pos) {
-      wordFilterTag.innerHTML = `<option value="">전체</option>`;
-    } else {
-      fillTagSelect(pos, wordFilterTag, true);
-    }
+    fillTagFilterOptions(wordFilterPos.value);
     renderWords();
   });
 
@@ -256,7 +354,10 @@ function attachEvents() {
 
   cancelEditBtn.addEventListener("click", () => {
     resetWordForm();
+    wordInput.focus();
   });
+
+  wordInput.addEventListener("keydown", focusMeaningsWhenEnter);
 
   bookForm.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -286,62 +387,12 @@ function attachEvents() {
     selectedSectionId = newSection.id;
     input.value = "";
     renderAll();
+    wordInput.focus();
   });
 
   wordForm.addEventListener("submit", (event) => {
     event.preventDefault();
-
-    if (!selectedBookId || !selectedSectionId) {
-      alert("먼저 책과 섹션을 선택하세요.");
-      return;
-    }
-
-    const editingWordId = editingWordIdInput.value.trim();
-    const word = document.getElementById("wordInput").value.trim();
-    const meaning = document.getElementById("meaningInput").value.trim();
-    const pos = posSelect.value;
-    const tone = toneSelect.value;
-    const tag = tagSelect.value;
-    const example = document.getElementById("exampleInput").value;
-    const memo = document.getElementById("memoInput").value;
-
-    if (!word || !meaning) {
-      alert("단어와 뜻을 입력하세요.");
-      return;
-    }
-
-    const isDuplicate = isDuplicateWordInSection(
-      selectedSectionId,
-      word,
-      editingWordId || null
-    );
-
-    if (isDuplicate) {
-      alert("같은 섹션에 같은 단어가 이미 있습니다.");
-      return;
-    }
-
-    const payload = {
-      bookId: selectedBookId,
-      sectionId: selectedSectionId,
-      word,
-      meaning,
-      pos,
-      tone,
-      tags: tag ? [tag] : [],
-      example,
-      memo
-    };
-
-    if (editingWordId) {
-      updateWord(editingWordId, payload);
-      alert("단어를 수정했습니다.");
-    } else {
-      addWord(payload);
-    }
-
-    resetWordForm();
-    renderAll();
+    handleWordSubmit();
   });
 
   bookList.addEventListener("click", (event) => {
@@ -380,6 +431,7 @@ function attachEvents() {
       selectedSectionId = id;
       resetWordForm();
       renderAll();
+      wordInput.focus();
     }
 
     if (action === "delete-section") {
@@ -418,6 +470,22 @@ function attachEvents() {
   });
 }
 
+function tryOpenEditTarget() {
+  const fromUrl = new URLSearchParams(window.location.search).get("wordId");
+  const fromSession = consumeArchiveEditTarget();
+  const targetWordId = fromUrl || fromSession;
+
+  if (!targetWordId) return;
+
+  const word = getWordById(targetWordId);
+  if (!word) return;
+
+  selectedBookId = word.bookId;
+  selectedSectionId = word.sectionId;
+  renderAll();
+  setEditMode(word);
+}
+
 async function main() {
   await initData();
 
@@ -425,8 +493,7 @@ async function main() {
   fillSelect(toneSelect, TONE_OPTIONS);
   fillSelect(wordFilterPos, POS_OPTIONS, true);
   fillSelect(wordFilterTone, TONE_OPTIONS, true);
-  wordFilterTag.innerHTML = `<option value="">전체</option>`;
-  fillTagSelect(posSelect.value);
+  fillTagFilterOptions();
 
   const data = getData();
   if (data.books.length) {
@@ -439,6 +506,7 @@ async function main() {
 
   attachEvents();
   renderAll();
+  tryOpenEditTarget();
 }
 
 main();
