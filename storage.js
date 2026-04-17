@@ -362,3 +362,32 @@ export function getWrongNoteEntriesBySection(sectionId) {
     .filter((w) => w.latestWrong)
     .sort((a, b) => b.wrongCount - a.wrongCount);
 }
+
+export function getRecentStudyStats(sectionId = null) {
+  const data = getData();
+
+  let records = [...data.studyRecords];
+
+  if (sectionId) {
+    const wordIds = new Set(
+      data.words
+        .filter((word) => word.sectionId === sectionId)
+        .map((word) => word.id)
+    );
+
+    records = records.filter((record) =>
+      wordIds.has(record.wordId)
+    );
+  }
+
+  const total = records.length;
+  const correct = records.filter((r) => r.finalCorrect).length;
+  const accuracy = total ? Math.round((correct / total) * 100) : 0;
+
+  return {
+    total,
+    correct,
+    wrong: total - correct,
+    accuracy
+  };
+}
