@@ -468,3 +468,83 @@ export function getStorageSummary() {
     favoriteCount: data.words.filter((word) => word.favorite).length
   };
 }
+
+export function getStudyStatsBySection(sectionId) {
+  const data = getData();
+  const wordIdsInSection = new Set(
+    data.words
+      .filter((word) => word.sectionId === sectionId)
+      .map((word) => word.id)
+  );
+
+  const records = data.studyRecords.filter((record) =>
+    wordIdsInSection.has(record.wordId)
+  );
+
+  const total = records.length;
+  const correct = records.filter((record) => record.finalCorrect).length;
+  const wrong = total - correct;
+  const accuracy = total ? Math.round((correct / total) * 100) : 0;
+
+  return { total, correct, wrong, accuracy };
+}
+
+export function getRecentStudyRecords(limit = 10, sectionId = null) {
+  const data = getData();
+
+  let records = [...data.studyRecords].sort(
+    (a, b) => new Date(b.studiedAt).getTime() - new Date(a.studiedAt).getTime()
+  );
+
+  if (sectionId) {
+    const wordIds = new Set(
+      data.words
+        .filter((word) => word.sectionId === sectionId)
+        .map((word) => word.id)
+    );
+
+    records = records.filter((record) => wordIds.has(record.wordId));
+  }
+
+  return records.slice(0, limit).map((record) => {
+    const word = data.words.find((item) => item.id === record.wordId);
+    return {
+      ...record,
+      word: word || null
+    };
+  });
+}
+
+export function getSectionDifficulty(sectionId) {
+  const stats = getStudyStatsBySection(sectionId);
+
+  if (stats.total === 0) {
+    return {
+      label: "미측정",
+      className: "diff-none"
+    };
+  }
+
+  if (stats.accuracy < 50) {
+    return {
+      label: "🔴 어려움",
+      className: "diff-hard"
+    };
+  }
+
+  if (stats.accuracy < 80) {
+    return {
+      label: "🟡 보통",
+      className: "diff-mid"
+    };
+  }
+
+  return {
+    label: "🟢 쉬움",
+    className: "diff-easy"
+  };
+}
+
+export function setArchiveEditTarget(wordId) {
+  sessionStorage.setItem(ARCHIVE_EDIT_TARGET_KEY, wordId);
+}
