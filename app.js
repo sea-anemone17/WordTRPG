@@ -38,12 +38,28 @@ function renderStats() {
   }
 }
 
+function maskEmail(email) {
+  if (!email) return "";
+
+  const [local, domain] = email.split("@");
+  if (!local || !domain) return email;
+
+  if (local.length <= 3) {
+    return `${local[0]}***@${domain}`;
+  }
+
+  const start = local.slice(0, 4);
+  const end = local.length > 6 ? local.slice(-2) : "";
+  return `${start}***${end ? end : ""}@${domain}`;
+}
+
 async function showUserInfo() {
   const { data } = await supabase.auth.getUser();
   const el = document.getElementById("user-info");
 
   if (data?.user && el) {
-    el.textContent = `로그인: ${data.user.email}`;
+    const masked = maskEmail(data.user.email);
+    el.textContent = `로그인됨 · ${masked}`;
   }
 }
 
