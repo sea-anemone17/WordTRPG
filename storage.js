@@ -23,51 +23,39 @@ function createEmptyData() {
   };
 }
 
-const CLOUD_USER_ID = "test-user";
-
 async function loadCloudData() {
-  const { data, error } = await supabase
+  const userId = await getCurrentUserId();
+
+  if (!userId) return null;
+
+  const { data } = await supabase
     .from("user_data")
     .select("data")
-    .eq("user_id", CLOUD_USER_ID)
+    .eq("user_id", userId)
     .order("updated_at", { ascending: false })
     .limit(1)
     .maybeSingle();
-
-  if (error) {
-    console.error("클라우드 불러오기 실패:", error);
-    return null;
-  }
 
   return data?.data ?? null;
 }
 
 async function saveCloudData(appData) {
+  const userId = await getCurrentUserId();
+
+  if (!userId) {
+    console.log("로그인 안됨");
+    return;
+  }
+
   const payload = {
-    user_id: CLOUD_USER_ID,
+    user_id: userId,
     data: appData,
     updated_at: nowISO()
   };
 
-  const { error } = await supabase
-    .from("user_data")
-    .delete()
-    .eq("user_id", CLOUD_USER_ID);
-
-  if (error) {
-    console.error("기존 클라우드 데이터 삭제 실패:", error);
-    return;
-  }
-
-  const { error: insertError } = await supabase
-    .from("user_data")
-    .insert(payload);
-
-  if (insertError) {
-    console.error("클라우드 저장 실패:", insertError);
-  }
+  await supabase.from("user_data").delete().eq("user_id", userId);
+  await supabase.from("user_data").insert(payload);
 }
-
 /* =========================
    🔧 MIGRATION
 ========================= */
