@@ -66,6 +66,8 @@ const importBackupInput = document.getElementById("importBackupInput");
 const importBackupBtn = document.getElementById("importBackupBtn");
 
 function fillSelect(selectElement, options, includeAll = false) {
+  if (!selectElement) return;
+
   const defaultOption = includeAll ? `<option value="">전체</option>` : "";
   selectElement.innerHTML =
     defaultOption +
@@ -75,6 +77,8 @@ function fillSelect(selectElement, options, includeAll = false) {
 }
 
 function fillTagFilterOptions(pos = "") {
+  if (!wordFilterTag) return;
+
   if (!pos) {
     wordFilterTag.innerHTML = `<option value="">전체</option>`;
     return;
@@ -87,6 +91,8 @@ function fillTagFilterOptions(pos = "") {
 }
 
 function renderTagCheckboxes(pos, selectedTags = []) {
+  if (!tagCheckboxGroup) return;
+
   const options = TAG_OPTIONS[pos] || [];
   if (!options.length) {
     tagCheckboxGroup.innerHTML = `<div class="muted">선택 가능한 태그가 없습니다.</div>`;
@@ -113,32 +119,36 @@ function getSelectedTags() {
 }
 
 function resetWordForm() {
-  editingWordIdInput.value = "";
-  wordForm.reset();
+  if (editingWordIdInput) editingWordIdInput.value = "";
+  if (wordForm) wordForm.reset();
   fillSelect(posSelect, POS_OPTIONS);
   fillSelect(toneSelect, TONE_OPTIONS);
-  renderTagCheckboxes(posSelect.value);
-  favoriteInput.checked = false;
-  wordSubmitBtn.textContent = "단어 추가";
-  wordForm.classList.remove("editing-highlight");
+  renderTagCheckboxes(posSelect?.value || "");
+  if (favoriteInput) favoriteInput.checked = false;
+  if (wordSubmitBtn) wordSubmitBtn.textContent = "단어 추가";
+  if (wordForm) wordForm.classList.remove("editing-highlight");
 }
 
 function setEditMode(word) {
-  editingWordIdInput.value = word.id;
-  wordInput.value = word.word;
-  meaningsInput.value = (word.meanings || []).join("\n");
-  posSelect.value = word.pos;
-  toneSelect.value = word.tone;
+  if (!word) return;
+
+  if (editingWordIdInput) editingWordIdInput.value = word.id;
+  if (wordInput) wordInput.value = word.word;
+  if (meaningsInput) meaningsInput.value = (word.meanings || []).join("\n");
+  if (posSelect) posSelect.value = word.pos;
+  if (toneSelect) toneSelect.value = word.tone;
   renderTagCheckboxes(word.pos, word.tags || []);
-  favoriteInput.checked = Boolean(word.favorite);
-  exampleInput.value = word.example || "";
-  memoInput.value = word.memo || "";
-  wordSubmitBtn.textContent = "단어 수정";
-  wordForm.classList.add("editing-highlight");
-  wordInput.focus();
+  if (favoriteInput) favoriteInput.checked = Boolean(word.favorite);
+  if (exampleInput) exampleInput.value = word.example || "";
+  if (memoInput) memoInput.value = word.memo || "";
+  if (wordSubmitBtn) wordSubmitBtn.textContent = "단어 수정";
+  if (wordForm) wordForm.classList.add("editing-highlight");
+  if (wordInput) wordInput.focus();
 }
 
 function renderStorageSummary() {
+  if (!storageSummaryBox) return;
+
   const summary = getStorageSummary();
   const lastUpdatedText = summary.lastUpdatedAt
     ? new Date(summary.lastUpdatedAt).toLocaleString("ko-KR")
@@ -158,6 +168,8 @@ function renderStorageSummary() {
 }
 
 function renderBooks() {
+  if (!bookList) return;
+
   const data = getData();
 
   if (!data.books.length) {
@@ -188,16 +200,18 @@ function renderBooks() {
 }
 
 function renderSections() {
+  if (!sectionList) return;
+
   const data = getData();
   const book = data.books.find((b) => b.id === selectedBookId);
 
   if (!book) {
-    selectedBookInfo.textContent = "책을 선택하세요.";
+    if (selectedBookInfo) selectedBookInfo.textContent = "책을 선택하세요.";
     sectionList.innerHTML = `<div class="empty-state">선택된 책이 없습니다.</div>`;
     return;
   }
 
-  selectedBookInfo.textContent = `선택한 책: ${book.title}`;
+  if (selectedBookInfo) selectedBookInfo.textContent = `선택한 책: ${book.title}`;
 
   const sections = data.sections
     .filter((section) => section.bookId === selectedBookId)
@@ -230,11 +244,11 @@ function renderSections() {
 }
 
 function getFilteredWords(words) {
-  const searchValue = wordSearchInput.value.trim().toLowerCase();
-  const posValue = wordFilterPos.value;
-  const toneValue = wordFilterTone.value;
-  const tagValue = wordFilterTag.value;
-  const favoriteValue = wordFilterFavorite.value;
+  const searchValue = wordSearchInput?.value.trim().toLowerCase() || "";
+  const posValue = wordFilterPos?.value || "";
+  const toneValue = wordFilterTone?.value || "";
+  const tagValue = wordFilterTag?.value || "";
+  const favoriteValue = wordFilterFavorite?.value || "";
 
   return words.filter((word) => {
     const meaningsText = (word.meanings || []).join(" ").toLowerCase();
@@ -257,16 +271,18 @@ function getFilteredWords(words) {
 }
 
 function renderWords() {
+  if (!wordList) return;
+
   const data = getData();
   const section = data.sections.find((s) => s.id === selectedSectionId);
 
   if (!section) {
-    selectedSectionInfo.textContent = "섹션을 선택하세요.";
+    if (selectedSectionInfo) selectedSectionInfo.textContent = "섹션을 선택하세요.";
     wordList.innerHTML = `<div class="empty-state">선택된 섹션이 없습니다.</div>`;
     return;
   }
 
-  selectedSectionInfo.textContent = `선택한 섹션: ${section.title}`;
+  if (selectedSectionInfo) selectedSectionInfo.textContent = `선택한 섹션: ${section.title}`;
 
   const words = data.words.filter((word) => word.sectionId === selectedSectionId);
   const filteredWords = getFilteredWords(words);
@@ -325,15 +341,15 @@ function handleWordSubmit() {
     return;
   }
 
-  const editingWordId = editingWordIdInput.value.trim();
-  const word = wordInput.value.trim();
-  const meanings = parseMeanings(meaningsInput.value);
-  const pos = posSelect.value;
-  const tone = toneSelect.value;
+  const editingWordId = editingWordIdInput?.value.trim() || "";
+  const word = wordInput?.value.trim() || "";
+  const meanings = parseMeanings(meaningsInput?.value || "");
+  const pos = posSelect?.value || "";
+  const tone = toneSelect?.value || "";
   const tags = getSelectedTags();
-  const favorite = favoriteInput.checked;
-  const example = exampleInput.value;
-  const memo = memoInput.value;
+  const favorite = Boolean(favoriteInput?.checked);
+  const example = exampleInput?.value || "";
+  const memo = memoInput?.value || "";
 
   if (!word || meanings.length === 0) {
     alert("단어와 뜻을 입력하세요.");
@@ -374,176 +390,200 @@ function handleWordSubmit() {
 
   resetWordForm();
   renderAll();
-  wordInput.focus();
+  if (wordInput) wordInput.focus();
 }
 
 function focusMeaningsWhenEnter(event) {
   if (event.key === "Enter") {
     event.preventDefault();
-    meaningsInput.focus();
+    if (meaningsInput) meaningsInput.focus();
   }
 }
 
 function attachEvents() {
-  posSelect.addEventListener("change", (event) => {
-    renderTagCheckboxes(event.target.value);
-  });
+  if (posSelect) {
+    posSelect.addEventListener("change", (event) => {
+      renderTagCheckboxes(event.target.value);
+    });
+  }
 
-  wordFilterPos.addEventListener("change", () => {
-    fillTagFilterOptions(wordFilterPos.value);
-    renderWords();
-  });
+  if (wordFilterPos) {
+    wordFilterPos.addEventListener("change", () => {
+      fillTagFilterOptions(wordFilterPos.value);
+      renderWords();
+    });
+  }
 
-  wordFilterTone.addEventListener("change", renderWords);
-  wordFilterTag.addEventListener("change", renderWords);
-  wordFilterFavorite.addEventListener("change", renderWords);
-  wordSearchInput.addEventListener("input", renderWords);
+  if (wordFilterTone) wordFilterTone.addEventListener("change", renderWords);
+  if (wordFilterTag) wordFilterTag.addEventListener("change", renderWords);
+  if (wordFilterFavorite) wordFilterFavorite.addEventListener("change", renderWords);
+  if (wordSearchInput) wordSearchInput.addEventListener("input", renderWords);
 
-  cancelEditBtn.addEventListener("click", () => {
-    resetWordForm();
-    wordInput.focus();
-  });
+  if (cancelEditBtn) {
+    cancelEditBtn.addEventListener("click", () => {
+      resetWordForm();
+      if (wordInput) wordInput.focus();
+    });
+  }
 
-  wordInput.addEventListener("keydown", focusMeaningsWhenEnter);
+  if (wordInput) {
+    wordInput.addEventListener("keydown", focusMeaningsWhenEnter);
+  }
 
-  exportBackupBtn.addEventListener("click", () => {
-    exportBackup();
-  });
+  if (exportBackupBtn) {
+    exportBackupBtn.addEventListener("click", () => {
+      exportBackup();
+    });
+  }
 
-  importBackupBtn.addEventListener("click", async () => {
-    const file = importBackupInput.files?.[0];
-    if (!file) {
-      alert("불러올 JSON 파일을 선택하세요.");
-      return;
-    }
+  if (importBackupBtn) {
+    importBackupBtn.addEventListener("click", async () => {
+      const file = importBackupInput?.files?.[0];
+      if (!file) {
+        alert("불러올 JSON 파일을 선택하세요.");
+        return;
+      }
 
-    const ok = confirm("현재 데이터를 백업 파일로 덮어쓸 수 있습니다. 계속할까요?");
-    if (!ok) return;
+      const ok = confirm("현재 데이터를 백업 파일로 덮어쓸 수 있습니다. 계속할까요?");
+      if (!ok) return;
 
-    try {
-      await importBackupFile(file);
-      alert("백업을 불러왔습니다.");
-      location.reload();
-    } catch (error) {
-      console.error(error);
-      alert("백업 불러오기에 실패했습니다. 파일 형식을 확인해 주세요.");
-    }
-  });
+      try {
+        await importBackupFile(file);
+        alert("백업을 불러왔습니다.");
+        location.reload();
+      } catch (error) {
+        console.error(error);
+        alert("백업 불러오기에 실패했습니다. 파일 형식을 확인해 주세요.");
+      }
+    });
+  }
 
-  bookForm.addEventListener("submit", (event) => {
-    event.preventDefault();
-    const input = document.getElementById("bookTitleInput");
-    const title = input.value.trim();
-    if (!title) return;
+  if (bookForm) {
+    bookForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const input = document.getElementById("bookTitleInput");
+      const title = input?.value.trim() || "";
+      if (!title) return;
 
-    const newBook = addBook(title);
-    selectedBookId = newBook.id;
-    selectedSectionId = null;
-    input.value = "";
-    renderAll();
-  });
-
-  sectionForm.addEventListener("submit", (event) => {
-    event.preventDefault();
-    if (!selectedBookId) {
-      alert("먼저 책을 선택하세요.");
-      return;
-    }
-
-    const input = document.getElementById("sectionTitleInput");
-    const title = input.value.trim();
-    if (!title) return;
-
-    const newSection = addSection(selectedBookId, title);
-    selectedSectionId = newSection.id;
-    input.value = "";
-    renderAll();
-    wordInput.focus();
-  });
-
-  wordForm.addEventListener("submit", (event) => {
-    event.preventDefault();
-    handleWordSubmit();
-  });
-
-  bookList.addEventListener("click", (event) => {
-    const button = event.target.closest("button");
-    if (!button) return;
-
-    const { action, id } = button.dataset;
-
-    if (action === "select-book") {
-      selectedBookId = id;
+      const newBook = addBook(title);
+      selectedBookId = newBook.id;
       selectedSectionId = null;
-      resetWordForm();
+      if (input) input.value = "";
       renderAll();
-    }
+    });
+  }
 
-    if (action === "delete-book") {
-      const ok = confirm("이 책과 관련 섹션/단어를 모두 삭제할까요?");
-      if (!ok) return;
-      deleteBook(id);
-      if (selectedBookId === id) {
-        selectedBookId = null;
-        selectedSectionId = null;
+  if (sectionForm) {
+    sectionForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      if (!selectedBookId) {
+        alert("먼저 책을 선택하세요.");
+        return;
       }
-      resetWordForm();
+
+      const input = document.getElementById("sectionTitleInput");
+      const title = input?.value.trim() || "";
+      if (!title) return;
+
+      const newSection = addSection(selectedBookId, title);
+      selectedSectionId = newSection.id;
+      if (input) input.value = "";
       renderAll();
-    }
-  });
+      if (wordInput) wordInput.focus();
+    });
+  }
 
-  sectionList.addEventListener("click", (event) => {
-    const button = event.target.closest("button");
-    if (!button) return;
+  if (wordForm) {
+    wordForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      handleWordSubmit();
+    });
+  }
 
-    const { action, id } = button.dataset;
+  if (bookList) {
+    bookList.addEventListener("click", (event) => {
+      const button = event.target.closest("button");
+      if (!button) return;
 
-    if (action === "select-section") {
-      selectedSectionId = id;
-      resetWordForm();
-      renderAll();
-      wordInput.focus();
-    }
+      const { action, id } = button.dataset;
 
-    if (action === "delete-section") {
-      const ok = confirm("이 섹션과 관련 단어를 모두 삭제할까요?");
-      if (!ok) return;
-      deleteSection(id);
-      if (selectedSectionId === id) {
+      if (action === "select-book") {
+        selectedBookId = id;
         selectedSectionId = null;
-      }
-      resetWordForm();
-      renderAll();
-    }
-  });
-
-  wordList.addEventListener("click", (event) => {
-    const button = event.target.closest("button");
-    if (!button) return;
-
-    const { action, id } = button.dataset;
-
-    if (action === "edit-word") {
-      const word = getWordById(id);
-      if (!word) return;
-      setEditMode(word);
-    }
-
-    if (action === "delete-word") {
-      const ok = confirm("이 단어를 삭제할까요?");
-      if (!ok) return;
-      if (editingWordIdInput.value === id) {
         resetWordForm();
+        renderAll();
       }
-      deleteWord(id);
-      renderAll();
-    }
 
-    if (action === "toggle-favorite") {
-      toggleFavorite(id);
-      renderAll();
-    }
-  });
+      if (action === "delete-book") {
+        const ok = confirm("이 책과 관련 섹션/단어를 모두 삭제할까요?");
+        if (!ok) return;
+        deleteBook(id);
+        if (selectedBookId === id) {
+          selectedBookId = null;
+          selectedSectionId = null;
+        }
+        resetWordForm();
+        renderAll();
+      }
+    });
+  }
+
+  if (sectionList) {
+    sectionList.addEventListener("click", (event) => {
+      const button = event.target.closest("button");
+      if (!button) return;
+
+      const { action, id } = button.dataset;
+
+      if (action === "select-section") {
+        selectedSectionId = id;
+        resetWordForm();
+        renderAll();
+        if (wordInput) wordInput.focus();
+      }
+
+      if (action === "delete-section") {
+        const ok = confirm("이 섹션과 관련 단어를 모두 삭제할까요?");
+        if (!ok) return;
+        deleteSection(id);
+        if (selectedSectionId === id) {
+          selectedSectionId = null;
+        }
+        resetWordForm();
+        renderAll();
+      }
+    });
+  }
+
+  if (wordList) {
+    wordList.addEventListener("click", (event) => {
+      const button = event.target.closest("button");
+      if (!button) return;
+
+      const { action, id } = button.dataset;
+
+      if (action === "edit-word") {
+        const word = getWordById(id);
+        if (!word) return;
+        setEditMode(word);
+      }
+
+      if (action === "delete-word") {
+        const ok = confirm("이 단어를 삭제할까요?");
+        if (!ok) return;
+        if (editingWordIdInput?.value === id) {
+          resetWordForm();
+        }
+        deleteWord(id);
+        renderAll();
+      }
+
+      if (action === "toggle-favorite") {
+        toggleFavorite(id);
+        renderAll();
+      }
+    });
+  }
 }
 
 function tryOpenEditTarget() {
