@@ -34,7 +34,12 @@ export async function signIn(email, password) {
 }
 
 export async function getCurrentUserId() {
-  const { data } = await supabase.auth.getUser();
+  const { data, error } = await supabase.auth.getUser();
+
+  if (error) {
+    console.error("현재 사용자 조회 실패:", error);
+    return null;
+  }
 
   return data?.user?.id ?? null;
 }
