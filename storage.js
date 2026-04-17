@@ -288,16 +288,50 @@ export function deleteWord(wordId) {
 export function addStudyRecord(recordData) {
   const data = getData();
 
-  data.studyRecords.push({
+  const newRecord = {
     id: generateId("record"),
     wordId: recordData.wordId,
     userAnswer: recordData.userAnswer || "",
     autoJudgedCorrect: Boolean(recordData.autoJudgedCorrect),
     finalCorrect: Boolean(recordData.finalCorrect),
     studiedAt: nowISO()
-  });
+  };
+
+  data.studyRecords.push(newRecord);
+  data.studyRecords = data.studyRecords
+    .sort((a, b) => new Date(b.studiedAt) - new Date(a.studiedAt))
+    .slice(0, 10);
 
   saveData(data);
+}
+
+export function getRecentStudyStats(sectionId = null) {
+  const data = getData();
+
+  let records = [...data.studyRecords];
+
+  if (sectionId) {
+    const wordIds = new Set(
+      data.words
+        .filter((word) => word.sectionId === sectionId)
+        .map((word) => word.id)
+    );
+
+    records = records.filter((record) =>
+      wordIds.has(record.wordId)
+    );
+  }
+
+  const total = records.length;
+  const correct = records.filter((r) => r.finalCorrect).length;
+  const accuracy = total ? Math.round((correct / total) * 100) : 0;
+
+  return {
+    total,
+    correct,
+    wrong: total - correct,
+    accuracy
+  };
 }
 
 /* =========================
