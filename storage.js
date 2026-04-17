@@ -22,6 +22,10 @@ function createEmptyData() {
   };
 }
 
+/* =========================
+   🔧 MIGRATION
+========================= */
+
 function migrateWord(word) {
   const next = { ...word };
 
@@ -29,7 +33,7 @@ function migrateWord(word) {
     if (typeof next.meaning === "string") {
       next.meanings = next.meaning
         .split(",")
-        .map((part) => part.trim())
+        .map((p) => p.trim())
         .filter(Boolean);
     } else {
       next.meanings = [];
@@ -37,11 +41,10 @@ function migrateWord(word) {
   }
 
   if (!Array.isArray(next.tags)) {
-    if (typeof next.tags === "string" && next.tags.trim()) {
-      next.tags = [next.tags.trim()];
-    } else {
-      next.tags = [];
-    }
+    next.tags =
+      typeof next.tags === "string" && next.tags.trim()
+        ? [next.tags.trim()]
+        : [];
   }
 
   if (typeof next.favorite !== "boolean") {
@@ -56,56 +59,73 @@ function migrateRecord(record) {
   const next = { ...record };
 
   if (typeof next.autoJudgedCorrect !== "boolean") {
-    if (typeof next.correct === "boolean") {
-      next.autoJudgedCorrect = next.correct;
-    } else {
-      next.autoJudgedCorrect = false;
-    }
+    next.autoJudgedCorrect = Boolean(next.correct);
   }
 
   if (typeof next.finalCorrect !== "boolean") {
-    if (typeof next.correct === "boolean") {
-      next.finalCorrect = next.correct;
-    } else {
-      next.finalCorrect = false;
-    }
+    next.finalCorrect = Boolean(next.correct);
   }
 
   delete next.correct;
   return next;
 }
 
+/* =========================
+   🔒 DATA INTEGRITY
+========================= */
+
+function enforceIntegrity(data) {
+  const bookIds = new Set(data.books.map((b) => b.id));
+  const sectionIds = new Set(data.sections.map((s) => s.id));
+
+  data.sections = data.sections.filter((s) => bookIds.has(s.bookId));
+
+  data.words = data.words.filter(
+    (w) => bookIds.has(w.bookId) && sectionIds.has(w.sectionId)
+  );
+
+  const wordIds = new Set(data.words.map((w) => w.id));
+
+  data.studyRecords = data.studyRecords.filter((r) =>
+    wordIds.has(r.wordId)
+  );
+
+  return data;
+}
+
 function migrateData(rawData) {
-  return {
+  const migrated = {
     schemaVersion: CURRENT_SCHEMA_VERSION,
     lastUpdatedAt: rawData.lastUpdatedAt || nowISO(),
-    books: (rawData.books || []).map((book) => ({ ...book })),
-    sections: (rawData.sections || []).map((section) => ({ ...section })),
+    books: (rawData.books || []).map((b) => ({ ...b })),
+    sections: (rawData.sections || []).map((s) => ({ ...s })),
     words: (rawData.words || []).map(migrateWord),
     studyRecords: (rawData.studyRecords || []).map(migrateRecord)
   };
+
+  return enforceIntegrity(migrated);
 }
+
+/* =========================
+   📦 CORE STORAGE
+========================= */
 
 export function getData() {
   const raw = localStorage.getItem(STORAGE_KEY);
-
-  if (!raw) {
-    return createEmptyData();
-  }
+  if (!raw) return createEmptyData();
 
   try {
-    const parsed = JSON.parse(raw);
-    return migrateData(parsed);
-  } catch (error) {
-    console.error("데이터 파싱 실패:", error);
+    return migrateData(JSON.parse(raw));
+  } catch (e) {
+    console.error("데이터 파싱 실패:", e);
     return createEmptyData();
   }
 }
 
 export function saveData(data) {
-  const safeData = migrateData(data);
-  safeData.lastUpdatedAt = nowISO();
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(safeData));
+  const safe = migrateData(data);
+  safe.lastUpdatedAt = nowISO();
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(safe));
 }
 
 export function replaceData(newData) {
@@ -114,55 +134,55 @@ export function replaceData(newData) {
   return migrated;
 }
 
+/* =========================
+   🔄 INIT
+========================= */
+
 function tryMigrateLegacyKeys() {
   for (const key of LEGACY_KEYS) {
     const raw = localStorage.getItem(key);
     if (!raw) continue;
 
     try {
-      const parsed = JSON.parse(raw);
-      const migrated = migrateData(parsed);
+      const migrated = migrateData(JSON.parse(raw));
       saveData(migrated);
       return migrated;
-    } catch (error) {
-      console.warn(`레거시 키 마이그레이션 실패: ${key}`, error);
+    } catch (e) {
+      console.warn(`레거시 마이그레이션 실패: ${key}`, e);
     }
   }
-
   return null;
 }
 
 export async function initData() {
-  const existingRaw = localStorage.getItem(STORAGE_KEY);
+  const existing = localStorage.getItem(STORAGE_KEY);
 
-  if (existingRaw) {
-    const existing = getData();
-    saveData(existing);
-    return existing;
+  if (existing) {
+    const data = getData();
+    saveData(data);
+    return data;
   }
 
-  const migratedLegacy = tryMigrateLegacyKeys();
-  if (migratedLegacy) {
-    return migratedLegacy;
-  }
+  const legacy = tryMigrateLegacyKeys();
+  if (legacy) return legacy;
 
   try {
-    const response = await fetch("./defaultBooks.json");
-    if (!response.ok) {
-      throw new Error("기본 데이터 로드 실패");
-    }
+    const res = await fetch("./defaultBooks.json");
+    if (!res.ok) throw new Error();
 
-    const defaultData = await response.json();
-    const migrated = migrateData(defaultData);
+    const migrated = migrateData(await res.json());
     saveData(migrated);
     return migrated;
-  } catch (error) {
-    console.warn("기본 데이터 없이 빈 데이터로 시작합니다.", error);
+  } catch {
     const empty = createEmptyData();
     saveData(empty);
     return empty;
   }
 }
+
+/* =========================
+   📚 BOOK / SECTION
+========================= */
 
 export function addBook(title) {
   const data = getData();
@@ -178,15 +198,16 @@ export function addBook(title) {
 
 export function deleteBook(bookId) {
   const data = getData();
-  const relatedWordIds = data.words
-    .filter((word) => word.bookId === bookId)
-    .map((word) => word.id);
 
-  data.books = data.books.filter((book) => book.id !== bookId);
-  data.sections = data.sections.filter((section) => section.bookId !== bookId);
-  data.words = data.words.filter((word) => word.bookId !== bookId);
+  const wordIds = data.words
+    .filter((w) => w.bookId === bookId)
+    .map((w) => w.id);
+
+  data.books = data.books.filter((b) => b.id !== bookId);
+  data.sections = data.sections.filter((s) => s.bookId !== bookId);
+  data.words = data.words.filter((w) => w.bookId !== bookId);
   data.studyRecords = data.studyRecords.filter(
-    (record) => !relatedWordIds.includes(record.wordId)
+    (r) => !wordIds.includes(r.wordId)
   );
 
   saveData(data);
@@ -194,14 +215,13 @@ export function deleteBook(bookId) {
 
 export function addSection(bookId, title) {
   const data = getData();
-  const order =
-    data.sections.filter((section) => section.bookId === bookId).length + 1;
 
   const section = {
     id: generateId("section"),
     bookId,
     title: title.trim(),
-    order
+    order:
+      data.sections.filter((s) => s.bookId === bookId).length + 1
   };
 
   data.sections.push(section);
@@ -213,49 +233,21 @@ export function deleteSection(sectionId) {
   const data = getData();
 
   const wordIds = data.words
-    .filter((word) => word.sectionId === sectionId)
-    .map((word) => word.id);
+    .filter((w) => w.sectionId === sectionId)
+    .map((w) => w.id);
 
-  data.sections = data.sections.filter((section) => section.id !== sectionId);
-  data.words = data.words.filter((word) => word.sectionId !== sectionId);
+  data.sections = data.sections.filter((s) => s.id !== sectionId);
+  data.words = data.words.filter((w) => w.sectionId !== sectionId);
   data.studyRecords = data.studyRecords.filter(
-    (record) => !wordIds.includes(record.wordId)
+    (r) => !wordIds.includes(r.wordId)
   );
 
   saveData(data);
 }
 
-export function isDuplicateWordInSection(
-  sectionId,
-  wordText,
-  pos,
-  excludeWordId = null
-) {
-  const data = getData();
-  const targetWord = normalizeText(wordText);
-  const targetPos = pos?.trim();
-
-  return data.words.some((word) => {
-    if (word.sectionId !== sectionId) return false;
-    if (excludeWordId && word.id === excludeWordId) return false;
-
-    return (
-      normalizeText(word.word) === targetWord &&
-      word.pos === targetPos
-    );
-  });
-}
-
-export function parseMeanings(inputText) {
-  return [
-    ...new Set(
-      inputText
-        .split("\n")
-        .map((line) => line.trim())
-        .filter(Boolean)
-    )
-  ];
-}
+/* =========================
+   🧠 WORD
+========================= */
 
 export function addWord(wordData) {
   const data = getData();
@@ -265,10 +257,10 @@ export function addWord(wordData) {
     bookId: wordData.bookId,
     sectionId: wordData.sectionId,
     word: wordData.word.trim(),
-    meanings: Array.isArray(wordData.meanings) ? wordData.meanings : [],
+    meanings: wordData.meanings || [],
     pos: wordData.pos,
     tone: wordData.tone,
-    tags: Array.isArray(wordData.tags) ? wordData.tags : [],
+    tags: wordData.tags || [],
     favorite: Boolean(wordData.favorite),
     example: wordData.example?.trim() || "",
     memo: wordData.memo?.trim() || "",
@@ -280,207 +272,88 @@ export function addWord(wordData) {
   return word;
 }
 
-export function updateWord(wordId, patch) {
-  const data = getData();
-  const target = data.words.find((word) => word.id === wordId);
-  if (!target) return null;
-
-  target.word = patch.word?.trim() ?? target.word;
-  target.meanings = Array.isArray(patch.meanings) ? patch.meanings : target.meanings;
-  target.pos = patch.pos ?? target.pos;
-  target.tone = patch.tone ?? target.tone;
-  target.tags = Array.isArray(patch.tags) ? patch.tags : target.tags;
-  target.favorite =
-    typeof patch.favorite === "boolean" ? patch.favorite : target.favorite;
-  target.example = patch.example?.trim() ?? target.example;
-  target.memo = patch.memo?.trim() ?? target.memo;
-
-  saveData(data);
-  return target;
-}
-
-export function toggleFavorite(wordId) {
-  const data = getData();
-  const target = data.words.find((word) => word.id === wordId);
-  if (!target) return null;
-
-  target.favorite = !target.favorite;
-  saveData(data);
-  return target.favorite;
-}
-
-export function getWordById(wordId) {
-  const data = getData();
-  return data.words.find((word) => word.id === wordId) || null;
-}
-
 export function deleteWord(wordId) {
   const data = getData();
-  data.words = data.words.filter((word) => word.id !== wordId);
-  data.studyRecords = data.studyRecords.filter((record) => record.wordId !== wordId);
+  data.words = data.words.filter((w) => w.id !== wordId);
+  data.studyRecords = data.studyRecords.filter(
+    (r) => r.wordId !== wordId
+  );
   saveData(data);
 }
+
+/* =========================
+   📊 STUDY
+========================= */
 
 export function addStudyRecord(recordData) {
   const data = getData();
-  const record = {
+
+  data.studyRecords.push({
     id: generateId("record"),
     wordId: recordData.wordId,
     userAnswer: recordData.userAnswer || "",
     autoJudgedCorrect: Boolean(recordData.autoJudgedCorrect),
     finalCorrect: Boolean(recordData.finalCorrect),
     studiedAt: nowISO()
-  };
-  data.studyRecords.push(record);
-  saveData(data);
-  return record;
-}
-
-export function clearWrongNoteByWord(wordId, sectionId = null) {
-  const data = getData();
-
-  const targetWord = data.words.find((word) => word.id === wordId);
-  if (!targetWord) return false;
-
-  data.studyRecords = data.studyRecords.filter((record) => {
-    if (record.wordId !== wordId) return true;
-    if (record.finalCorrect) return true;
-
-    if (sectionId && targetWord.sectionId !== sectionId) return true;
-
-    return false;
   });
 
   saveData(data);
-  return true;
+}
+
+/* =========================
+   ❌ WRONG NOTE (핵심)
+========================= */
+
+function getLatestRecord(records) {
+  return records
+    .sort((a, b) => new Date(b.studiedAt) - new Date(a.studiedAt))[0];
+}
+
+export function clearWrongNoteByWord(wordId) {
+  const data = getData();
+
+  data.studyRecords = data.studyRecords.filter(
+    (r) => r.wordId !== wordId || r.finalCorrect
+  );
+
+  saveData(data);
 }
 
 export function getWrongWordIdsBySection(sectionId) {
   const data = getData();
-  const wordIdsInSection = new Set(
-    data.words.filter((word) => word.sectionId === sectionId).map((word) => word.id)
-  );
 
-  const wrongIds = data.studyRecords
-    .filter((record) => !record.finalCorrect && wordIdsInSection.has(record.wordId))
-    .map((record) => record.wordId);
-
-  return [...new Set(wrongIds)];
-}
-
-export function getStudyStatsBySection(sectionId) {
-  const data = getData();
-  const wordIdsInSection = new Set(
-    data.words.filter((word) => word.sectionId === sectionId).map((word) => word.id)
-  );
-
-  const records = data.studyRecords.filter((record) => wordIdsInSection.has(record.wordId));
-  const total = records.length;
-  const correct = records.filter((record) => record.finalCorrect).length;
-  const wrong = total - correct;
-  const accuracy = total ? Math.round((correct / total) * 100) : 0;
-
-  return { total, correct, wrong, accuracy };
+  return data.words
+    .filter((w) => w.sectionId === sectionId)
+    .filter((word) => {
+      const records = data.studyRecords.filter(
+        (r) => r.wordId === word.id
+      );
+      const latest = getLatestRecord(records);
+      return latest ? !latest.finalCorrect : false;
+    })
+    .map((w) => w.id);
 }
 
 export function getWrongNoteEntriesBySection(sectionId) {
   const data = getData();
-  const words = data.words.filter((word) => word.sectionId === sectionId);
 
-  return words
+  return data.words
+    .filter((w) => w.sectionId === sectionId)
     .map((word) => {
-      const records = data.studyRecords
-        .filter((record) => record.wordId === word.id)
-        .sort((a, b) => new Date(b.studiedAt).getTime() - new Date(a.studiedAt).getTime());
+      const records = data.studyRecords.filter(
+        (r) => r.wordId === word.id
+      );
 
-      const wrongCount = records.filter((record) => !record.finalCorrect).length;
-      const correctCount = records.filter((record) => record.finalCorrect).length;
-      const latestRecord = records[0] || null;
+      const latest = getLatestRecord(records);
 
       return {
         ...word,
-        wrongCount,
-        correctCount,
+        wrongCount: records.filter((r) => !r.finalCorrect).length,
+        correctCount: records.filter((r) => r.finalCorrect).length,
         totalCount: records.length,
-        latestWrong: latestRecord ? !latestRecord.finalCorrect : false
+        latestWrong: latest ? !latest.finalCorrect : false
       };
     })
-    .filter((entry) => entry.latestWrong)
+    .filter((w) => w.latestWrong)
     .sort((a, b) => b.wrongCount - a.wrongCount);
-}
-
-export function getRecentStudyRecords(limit = 10, sectionId = null) {
-  const data = getData();
-
-  let records = [...data.studyRecords].sort(
-    (a, b) => new Date(b.studiedAt).getTime() - new Date(a.studiedAt).getTime()
-  );
-
-  if (sectionId) {
-    const wordIds = new Set(
-      data.words.filter((word) => word.sectionId === sectionId).map((word) => word.id)
-    );
-    records = records.filter((record) => wordIds.has(record.wordId));
-  }
-
-  return records.slice(0, limit).map((record) => {
-    const word = data.words.find((item) => item.id === record.wordId);
-    return {
-      ...record,
-      word: word || null
-    };
-  });
-}
-
-export function getSectionDifficulty(sectionId) {
-  const stats = getStudyStatsBySection(sectionId);
-
-  if (stats.total === 0) {
-    return {
-      label: "미측정",
-      className: "diff-none"
-    };
-  }
-
-  if (stats.accuracy < 50) {
-    return {
-      label: "🔴 어려움",
-      className: "diff-hard"
-    };
-  }
-
-  if (stats.accuracy < 80) {
-    return {
-      label: "🟡 보통",
-      className: "diff-mid"
-    };
-  }
-
-  return {
-    label: "🟢 쉬움",
-    className: "diff-easy"
-  };
-}
-
-export function setArchiveEditTarget(wordId) {
-  sessionStorage.setItem(ARCHIVE_EDIT_TARGET_KEY, wordId);
-}
-
-export function consumeArchiveEditTarget() {
-  const target = sessionStorage.getItem(ARCHIVE_EDIT_TARGET_KEY);
-  sessionStorage.removeItem(ARCHIVE_EDIT_TARGET_KEY);
-  return target;
-}
-
-export function getStorageSummary() {
-  const data = getData();
-  return {
-    schemaVersion: data.schemaVersion || CURRENT_SCHEMA_VERSION,
-    lastUpdatedAt: data.lastUpdatedAt || null,
-    bookCount: data.books.length,
-    sectionCount: data.sections.length,
-    wordCount: data.words.length,
-    recordCount: data.studyRecords.length,
-    favoriteCount: data.words.filter((word) => word.favorite).length
-  };
 }
