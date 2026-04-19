@@ -103,6 +103,8 @@ function startTurnWithAction(actionTypeId) {
   pendingSubmission = null;
   resetUiForNewTurn();
 
+  // 턴 시작 직후에는 종료 조건이 걸릴 일이 거의 없지만,
+  // 구조상 유지해도 큰 문제는 없습니다.
   checkEndingCondition(gameState, scenario, clearCurrentTurn);
   render();
 }
@@ -194,6 +196,9 @@ function finalizeInterpretation(finalCorrect) {
     els.trpgJudgeConfirmBox.classList.add("hidden");
   }
 
+  // 여기서는 엔딩 체크를 하지 않습니다.
+  // 선택지를 보여 준 뒤, 사용자가 선택을 마쳤을 때 종료 조건을 확인해야
+  // currentChoicePool / resolvedThisTurn 상태가 유지됩니다.
   render();
 }
 
@@ -201,14 +206,19 @@ function finishTurnWithChoice(choiceId) {
   if (!gameState.currentActionType || !gameState.resolvedThisTurn || gameState.ended) return;
 
   const choice = (gameState.currentChoicePool || []).find((item) => item.id === choiceId);
+
   if (choice?.journalText) {
     gameState.journal.push(choice.journalText);
   }
+
   if (choice?.routeTag) {
     addRouteCount(gameState.choiceRouteCounts, choice.routeTag, 1);
   }
 
+  // 선택을 마친 뒤에 턴 종료
   clearCurrentTurn(gameState);
+
+  // 이 시점에 종료 조건 확인
   checkEndingCondition(gameState, getScenario(), clearCurrentTurn);
   render();
 }
