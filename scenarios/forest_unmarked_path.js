@@ -40,7 +40,7 @@ export const forestunmarkedpathScenario = {
         "공기의 흐름, 지면의 온도, 나뭇잎이 흔들리는 방향을 읽으며 이 장소가 평범한 숲과 다른 점이 있는지 감지한다."
       ],
 
-      preferredTags: ["sense", "nature", "atmosphere", "place"],
+      preferredTags: ["sense", "nature", "atmosphere", "space"],
       preferredPos: ["noun", "adjective"],
 
       successTextPool: [
@@ -118,7 +118,7 @@ export const forestunmarkedpathScenario = {
         "최근의 흔적인지 오래된 것인지, 의도적인 것인지 우연한 것인지를 구별하며 이 숲에서 비자연적인 흔적의 방향을 좇는다."
       ],
 
-      preferredTags: ["movement", "action", "nature", "change"],
+      preferredTags: ["action", "change", "nature"],
       preferredPos: ["verb", "noun"],
 
       successTextPool: [
@@ -196,7 +196,7 @@ export const forestunmarkedpathScenario = {
         "이 숲의 지형이 어떻게 구성되어 있는지를 파악하면, 사람이 만든 것이 어디에 있을지 좁혀 낼 수 있다."
       ],
 
-      preferredTags: ["place", "nature", "concept", "danger"],
+      preferredTags: ["space", "nature", "concept", "danger"],
       preferredPos: ["noun", "adjective"],
 
       successTextPool: [
