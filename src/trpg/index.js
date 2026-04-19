@@ -1,1 +1,3 @@
-document.body.innerHTML = "<h1 style='color:red;'>INDEX ONLY TEST</h1>";
+import { scenarios } from "../../scenarios/index.js";
+
+document.body.innerHTML = "<h1>INDEX ONLY TEST</h1>";
