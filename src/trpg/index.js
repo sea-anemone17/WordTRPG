@@ -226,18 +226,12 @@ function finishTurnWithChoice(choiceId) {
 function render() {
   renderAll({
     els,
-    data: getData(),
-    scenarios,
     gameState,
     scenario: getScenario(),
     getPosLabel,
     getToneLabel,
     getTagLabel
   });
-
-  if (els?.difficultySelect) {
-    els.difficultySelect.value = gameState.difficulty;
-  }
 }
 
 function attachEvents() {
