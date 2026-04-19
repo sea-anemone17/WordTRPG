@@ -1,3 +1,8 @@
+document.body.insertAdjacentHTML(
+  "afterbegin",
+  "<div style='background:#0033cc;color:white;padding:8px;font-size:14px;position:fixed;top:0;left:0;z-index:99999;'>INDEX JS LOADED</div>"
+);
+
 import { getData } from "../storage.js";
 import { scenarios } from "../../scenarios/index.js";
 import { getPosLabel, getToneLabel, getTagLabel } from "../tags.js";
