@@ -1,3 +1,10 @@
+export function renderChoicePool({ els, gameState }) {
+
+  alert("renderChoicePool 실행됨");
+
+  if (!els.sceneChoiceBox || !els.choiceButtons) return;
+
+
 import { escapeHtml } from "../utils.js";
 import { getDifficultyPreset, QUIZ_MODE_LABELS } from "./trpgConfig.js";
 import {
