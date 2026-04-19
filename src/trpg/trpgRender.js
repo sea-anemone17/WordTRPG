@@ -298,18 +298,12 @@ export function renderEnding({ els, gameState, scenario }) {
 
 export function renderAll({
   els,
-  data,
-  scenarios,
   gameState,
   scenario,
   getPosLabel,
   getToneLabel,
   getTagLabel
 }) {
-  renderBookOptions({ els, data });
-  renderSectionOptions({ els, data });
-  renderScenarioOptions({ els, scenarios });
-  renderDifficultyOptions({ els });
   updateStateBox({ els, gameState, scenario });
   renderIntro({ els, scenario });
   renderSceneChoiceMenu({ els, gameState, scenario });
@@ -317,4 +311,4 @@ export function renderAll({
   renderChoicePool({ els, gameState });
   renderJournal({ els, gameState });
   renderEnding({ els, gameState, scenario });
-                         }
+}
