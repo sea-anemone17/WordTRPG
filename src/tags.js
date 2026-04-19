@@ -19,17 +19,32 @@ export const TONE_OPTIONS = [
 ];
 
 export const TAG_OPTIONS = [
+  // 공간/사물
+  { value: "space", label: "공간" },
+  { value: "object", label: "사물" },
+  // 행동/변화
   { value: "action", label: "행동" },
+  { value: "change", label: "변화" },
+  // 감정/내면
   { value: "emotion", label: "감정" },
   { value: "thought", label: "사고" },
+  // 관계/사회
   { value: "relation", label: "관계" },
-  { value: "person", label: "인물" },
-  { value: "space", label: "공간" },
-  { value: "time", label: "시간" },
-  { value: "state", label: "상태" },
-  { value: "change", label: "변화" },
-  { value: "abstract", label: "추상" },
-  { value: "concrete", label: "구체" },
+  { value: "authority", label: "권위/제도" },
+  // 개념/기록
+  { value: "concept", label: "개념" },
+  { value: "document", label: "기록" },
+  // 감각/분위기
+  { value: "sense", label: "감각" },
+  { value: "atmosphere", label: "분위기" },
+  // 자연
+  { value: "nature", label: "자연" },
+  // 기술/체계
+  { value: "system", label: "체계" },
+  { value: "signal", label: "신호" },
+  // 기타
+  { value: "danger", label: "위험" },
+  { value: "daily", label: "일상" },
   { value: "test", label: "시험빈출" }
 ];
 
