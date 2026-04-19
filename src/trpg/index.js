@@ -14,7 +14,14 @@ import {
 } from "./trpgHelpers.js";
 import { judgeByQuizMode } from "./trpgJudge.js";
 import { chooseQuizMode, buildPromptForTurn } from "./trpgPrompt.js";
-import { getTrpgElements, renderAll, renderSectionOptions } from "./trpgRender.js";
+import {
+  getTrpgElements,
+  renderAll,
+  renderSectionOptions,
+  renderBookOptions,
+  renderScenarioOptions,
+  renderDifficultyOptions
+} from "./trpgRender.js";
 
 let els = null;
 let gameState = createInitialGameState();
@@ -313,6 +320,20 @@ function attachEvents() {
 export async function initTrpgApp() {
   els = getTrpgElements();
   gameState = createInitialGameState();
-  render();
+
+  const data = getData();
+
+  // select 옵션은 초기화 시 한 번만 채움
+  renderBookOptions({ els, data });
+  renderSectionOptions({ els, data });
+  renderScenarioOptions({ els, scenarios });
+  renderDifficultyOptions({ els });
+
+  // 기본 난이도 값 반영
+  if (els?.difficultySelect) {
+    els.difficultySelect.value = gameState.difficulty;
+  }
+
   attachEvents();
+  render();
 }
