@@ -1,24 +1,18 @@
 import { escapeHtml } from "../utils.js";
 import { getDifficultyPreset, QUIZ_MODE_LABELS } from "./trpgConfig.js";
-import {
-  getEndingLevelText,
-  getRouteSummaryText,
-  getChoiceRouteFlavor
-} from "./trpgHelpers.js";
 
 export function getTrpgElements() {
   return {
-    trpgBookSelect: document.getElementById("trpgBookSelect"),
-    trpgSectionSelect: document.getElementById("trpgSectionSelect"),
+    bookSelect: document.getElementById("trpgBookSelect"),
+    sectionSelect: document.getElementById("trpgSectionSelect"),
     scenarioSelect: document.getElementById("scenarioSelect"),
     difficultySelect: document.getElementById("difficultySelect"),
-
-    startScenarioBtn: document.getElementById("startScenarioBtn"),
-    restartScenarioBtn: document.getElementById("restartScenarioBtn"),
+    startBtn: document.getElementById("startScenarioBtn"),
+    restartBtn: document.getElementById("restartScenarioBtn"),
 
     sceneCounter: document.getElementById("sceneCounter"),
-    clueCountEl: document.getElementById("clueCount"),
-    mistakeCountEl: document.getElementById("mistakeCount"),
+    clueCount: document.getElementById("clueCount"),
+    mistakeCount: document.getElementById("mistakeCount"),
     scenarioStatus: document.getElementById("scenarioStatus"),
 
     scenarioTitle: document.getElementById("scenarioTitle"),
@@ -30,148 +24,75 @@ export function getTrpgElements() {
     trpgWordMeta: document.getElementById("trpgWordMeta"),
     trpgQuizModeText: document.getElementById("trpgQuizModeText"),
     trpgTimerText: document.getElementById("trpgTimerText"),
-
-    trpgAnswerForm: document.getElementById("trpgAnswerForm"),
     trpgAnswerInput: document.getElementById("trpgAnswerInput"),
-    trpgShowAnswerBtn: document.getElementById("trpgShowAnswerBtn"),
     trpgResultBox: document.getElementById("trpgResultBox"),
-
     trpgJudgeConfirmBox: document.getElementById("trpgJudgeConfirmBox"),
     trpgJudgeHintText: document.getElementById("trpgJudgeHintText"),
-    trpgConfirmCorrectBtn: document.getElementById("trpgConfirmCorrectBtn"),
-    trpgConfirmWrongBtn: document.getElementById("trpgConfirmWrongBtn"),
 
-    sceneChoiceBox: document.getElementById("sceneChoiceBox"),
+    choiceBox: document.getElementById("sceneChoiceBox"),
     choiceButtons: document.getElementById("choiceButtons"),
 
     endingBox: document.getElementById("endingBox"),
-    endingText: document.getElementById("endingText"),
-
-    journalBox: document.getElementById("journalBox")
+    endingText: document.getElementById("endingText")
   };
 }
 
-export function renderBookOptions({ els, data }) {
-  const { trpgBookSelect, trpgSectionSelect } = els;
-  if (!trpgBookSelect || !trpgSectionSelect) return;
+export function renderStats({ els, gameState, scenario }) {
+  const maxTurns = scenario?.loopConfig?.maxTurns ?? 0;
 
-  if (!(data?.books || []).length) {
-    trpgBookSelect.innerHTML = `<option value="">책 없음</option>`;
-    trpgSectionSelect.innerHTML = `<option value="">섹션 없음</option>`;
-    return;
+  if (els.sceneCounter) {
+    els.sceneCounter.textContent = `${gameState.sceneIndex + 1} / ${maxTurns}`;
   }
-
-  trpgBookSelect.innerHTML = data.books
-    .map((book) => `<option value="${book.id}">${escapeHtml(book.title)}</option>`)
-    .join("");
-}
-
-export function renderSectionOptions({ els, data }) {
-  const { trpgBookSelect, trpgSectionSelect } = els;
-  if (!trpgSectionSelect) return;
-
-  const bookId = trpgBookSelect?.value;
-  const sections = (data?.sections || []).filter((section) => section.bookId === bookId);
-
-  if (!sections.length) {
-    trpgSectionSelect.innerHTML = `<option value="">섹션 없음</option>`;
-    return;
+  if (els.clueCount) {
+    els.clueCount.textContent = String(gameState.clues);
   }
-
-  trpgSectionSelect.innerHTML = sections
-    .sort((a, b) => a.order - b.order)
-    .map((section) => `<option value="${section.id}">${escapeHtml(section.title)}</option>`)
-    .join("");
-}
-
-export function renderScenarioOptions({ els, scenarios }) {
-  const { scenarioSelect } = els;
-  if (!scenarioSelect) return;
-
-  if (!scenarios.length) {
-    scenarioSelect.innerHTML = `<option value="">시나리오 없음</option>`;
-    return;
+  if (els.mistakeCount) {
+    els.mistakeCount.textContent = String(gameState.mistakes);
   }
-
-  scenarioSelect.innerHTML = scenarios
-    .map((scenario) => `<option value="${scenario.id}">${escapeHtml(scenario.title)}</option>`)
-    .join("");
-}
-
-export function renderDifficultyOptions({ els }) {
-  const { difficultySelect } = els;
-  if (!difficultySelect) return;
-
-  difficultySelect.innerHTML = `
-    <option value="easy">Easy</option>
-    <option value="normal">Normal</option>
-    <option value="hard">Hard</option>
-  `;
-}
-
-export function updateStateBox({ els, gameState, scenario }) {
-  const maxTurns = scenario?.loopConfig?.maxTurns || 0;
-
-  if (els.sceneCounter) els.sceneCounter.textContent = `${gameState.turnCount} / ${maxTurns}`;
-  if (els.clueCountEl) els.clueCountEl.textContent = String(gameState.clueCount);
-  if (els.mistakeCountEl) els.mistakeCountEl.textContent = String(gameState.mistakeCount);
-
-  if (!els.scenarioStatus) return;
-
-  if (gameState.ended) {
-    els.scenarioStatus.textContent = "종결";
-    return;
+  if (els.scenarioStatus) {
+    if (gameState.ended) {
+      els.scenarioStatus.textContent = "종결";
+    } else if (gameState.currentWordId && !gameState.resolvedThisTurn) {
+      els.scenarioStatus.textContent = "해석 중";
+    } else if (gameState.resolvedThisTurn) {
+      els.scenarioStatus.textContent = "선택 대기";
+    } else {
+      els.scenarioStatus.textContent = "진행 중";
+    }
   }
-
-  if (gameState.currentActionType && !gameState.resolvedThisTurn) {
-    els.scenarioStatus.textContent = "해석 중";
-    return;
-  }
-
-  if (gameState.currentActionType && gameState.resolvedThisTurn) {
-    els.scenarioStatus.textContent = "선택 대기";
-    return;
-  }
-
-  els.scenarioStatus.textContent = "행동 선택";
 }
 
 export function renderIntro({ els, scenario }) {
-  if (!els.scenarioTitle || !els.scenarioIntroBox) return;
+  if (!scenario) return;
 
-  if (!scenario) {
-    els.scenarioTitle.textContent = "시나리오";
-    els.scenarioIntroBox.innerHTML = `<p class="muted">시나리오를 시작해 주세요.</p>`;
-    return;
+  if (els.scenarioTitle) {
+    els.scenarioTitle.textContent = scenario.title;
   }
 
-  els.scenarioTitle.textContent = scenario.title;
-  els.scenarioIntroBox.innerHTML = `<p>${escapeHtml(scenario.intro)}</p>`;
+  if (els.scenarioIntroBox) {
+    els.scenarioIntroBox.innerHTML = `<p>${escapeHtml(scenario.intro || "")}</p>`;
+  }
 }
 
-export function renderSceneChoiceMenu({ els, gameState, scenario }) {
-  if (!els.sceneBox) return;
+export function renderScene({ els, scenario, gameState }) {
+  if (!els.sceneBox || !scenario) return;
 
-  if (!scenario || gameState.ended) {
-    els.sceneBox.innerHTML = `<p class="muted">시나리오를 시작해 주세요.</p>`;
-    return;
-  }
-
-  if (gameState.currentActionType) {
-    const actionType = gameState.currentActionType;
-    const description = gameState.currentDescriptionText || actionType.description || "";
-
+  if (gameState.ended) {
     els.sceneBox.innerHTML = `
-      <h3>${escapeHtml(actionType.label)}</h3>
-      <p>${escapeHtml(description)}</p>
+      <h3>조사 종료</h3>
+      <p>모든 장면이 끝났습니다.</p>
     `;
     return;
   }
 
-  const buttonsHtml = scenario.actionTypes
+  if (gameState.currentWordId) {
+    return;
+  }
+
+  const buttonsHtml = (scenario.actionTypes || [])
     .map(
       (action) => `
-        <button class="button" data-action-type="${action.id}" type="button">
+        <button class="button" type="button" data-action-id="${action.id}">
           ${escapeHtml(action.label)}
         </button>
       `
@@ -179,8 +100,8 @@ export function renderSceneChoiceMenu({ els, gameState, scenario }) {
     .join("");
 
   els.sceneBox.innerHTML = `
-    <h3>조사 행동을 선택하세요</h3>
-    <p class="muted">현재 상황에서 어떤 방식으로 조사할지 고르세요.</p>
+    <h3>장면 ${gameState.sceneIndex + 1}</h3>
+    <p>어떤 방식으로 조사할지 선택하세요.</p>
     <div class="button-row">${buttonsHtml}</div>
   `;
 }
@@ -188,24 +109,19 @@ export function renderSceneChoiceMenu({ els, gameState, scenario }) {
 export function renderWordEvent({
   els,
   gameState,
+  word,
   getPosLabel,
   getToneLabel,
   getTagLabel
 }) {
   if (!els.wordEventBox) return;
 
-  if (
-    !gameState.currentWord ||
-    !gameState.currentActionType ||
-    gameState.resolvedThisTurn ||
-    gameState.ended
-  ) {
+  if (!gameState.currentWordId || !word || gameState.resolvedThisTurn || gameState.ended) {
     els.wordEventBox.classList.add("hidden");
     return;
   }
 
   const preset = getDifficultyPreset(gameState.difficulty);
-  const word = gameState.currentWord;
 
   if (els.trpgWordText) {
     els.trpgWordText.textContent = gameState.currentPromptText || word.word;
@@ -216,7 +132,7 @@ export function renderWordEvent({
   }
 
   if (els.trpgTimerText) {
-    els.trpgTimerText.textContent = preset.timeLimitSec ? `제한 시간: ${preset.timeLimitSec}초` : "";
+    els.trpgTimerText.textContent = "";
   }
 
   const metaParts = [];
@@ -234,21 +150,36 @@ export function renderWordEvent({
   els.wordEventBox.classList.remove("hidden");
 }
 
-export function renderChoicePool({ els, gameState }) {
-  if (!els.sceneChoiceBox || !els.choiceButtons) return;
+export function renderJudgeResult({ els, judgeResult }) {
+  if (!els.trpgResultBox || !els.trpgJudgeConfirmBox || !els.trpgJudgeHintText) return;
+  if (!judgeResult) return;
 
-  if (!gameState.currentActionType || !gameState.resolvedThisTurn || gameState.ended) {
-    els.sceneChoiceBox.classList.add("hidden");
+  if (judgeResult.isCorrect) {
+    els.trpgResultBox.innerHTML = `<span class="result-correct">자동 판정: 정답 후보 ✅</span>`;
+    els.trpgJudgeHintText.textContent = "정답 후보입니다. 그대로 확정하거나 뒤집을 수 있습니다.";
+  } else {
+    els.trpgResultBox.innerHTML = `<span class="result-wrong">자동 판정: 오답 후보 ❌</span>`;
+    els.trpgJudgeHintText.textContent = `정답 보기: ${judgeResult.correctAnswerText}`;
+  }
+
+  els.trpgJudgeConfirmBox.classList.remove("hidden");
+}
+
+export function renderChoicePool({ els, gameState }) {
+  if (!els.choiceBox || !els.choiceButtons) return;
+
+  if (!gameState.resolvedThisTurn || gameState.ended) {
+    els.choiceBox.classList.add("hidden");
     els.choiceButtons.innerHTML = "";
     return;
   }
 
-  els.sceneChoiceBox.classList.remove("hidden");
+  els.choiceBox.classList.remove("hidden");
 
   els.choiceButtons.innerHTML = (gameState.currentChoicePool || [])
     .map(
       (choice) => `
-        <button class="button" data-choice-id="${choice.id}" type="button">
+        <button class="button" type="button" data-choice-id="${choice.id}">
           ${escapeHtml(choice.label)}
         </button>
       `
@@ -256,20 +187,17 @@ export function renderChoicePool({ els, gameState }) {
     .join("");
 }
 
-export function renderJournal({ els, gameState }) {
-  if (!els.journalBox) return;
-
-  if (!gameState.journal.length) {
-    els.journalBox.innerHTML = `<div class="empty-state">아직 기록이 없습니다.</div>`;
-    return;
-  }
-
-  els.journalBox.innerHTML = gameState.journal
-    .map((entry) => `<div class="log-entry">${escapeHtml(entry)}</div>`)
-    .join("");
+export function hideWordEvent(els) {
+  if (els.wordEventBox) els.wordEventBox.classList.add("hidden");
 }
 
-export function renderEnding({ els, gameState, scenario }) {
+export function clearWordUi(els) {
+  if (els.trpgAnswerInput) els.trpgAnswerInput.value = "";
+  if (els.trpgResultBox) els.trpgResultBox.innerHTML = "";
+  if (els.trpgJudgeConfirmBox) els.trpgJudgeConfirmBox.classList.add("hidden");
+}
+
+export function renderEnding({ els, gameState }) {
   if (!els.endingBox || !els.endingText) return;
 
   if (!gameState.ended) {
@@ -278,37 +206,10 @@ export function renderEnding({ els, gameState, scenario }) {
     return;
   }
 
-  if (!scenario) return;
-
-  const endingSummary = getEndingLevelText(gameState, scenario);
-  const routeSummary = getRouteSummaryText(gameState, scenario);
-  const choiceFlavor = getChoiceRouteFlavor(gameState);
-
   els.endingBox.classList.remove("hidden");
   els.endingText.innerHTML = `
-    <p>${escapeHtml(endingSummary)}</p>
-    ${routeSummary ? `<p>${escapeHtml(routeSummary)}</p>` : ""}
-    ${choiceFlavor ? `<p>${escapeHtml(choiceFlavor)}</p>` : ""}
-    <hr />
-    <p><strong>단서 수:</strong> ${gameState.clueCount}</p>
-    <p><strong>오해 수:</strong> ${gameState.mistakeCount}</p>
-    <p><strong>진행한 턴:</strong> ${gameState.turnCount}</p>
+    <p><strong>단서 수:</strong> ${gameState.clues}</p>
+    <p><strong>오해 수:</strong> ${gameState.mistakes}</p>
+    <p><strong>진행 장면:</strong> ${gameState.sceneIndex}</p>
   `;
-}
-
-export function renderAll({
-  els,
-  gameState,
-  scenario,
-  getPosLabel,
-  getToneLabel,
-  getTagLabel
-}) {
-  updateStateBox({ els, gameState, scenario });
-  renderIntro({ els, scenario });
-  renderSceneChoiceMenu({ els, gameState, scenario });
-  renderWordEvent({ els, gameState, getPosLabel, getToneLabel, getTagLabel });
-  renderChoicePool({ els, gameState });
-  renderJournal({ els, gameState });
-  renderEnding({ els, gameState, scenario });
 }
