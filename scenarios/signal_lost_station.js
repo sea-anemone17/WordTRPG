@@ -40,7 +40,7 @@ export const signalloststationScenario = {
         "당신은 이 공간을 하나의 기계처럼 본다. 고장 난 부분은 없다. 그렇다면 무엇이 달라진 것인가."
       ],
 
-      preferredTags: ["system", "function", "signal", "object"],
+      preferredTags: ["system", "signal", "object", "space"],
       preferredPos: ["noun", "verb"],
 
       successTextPool: [
@@ -118,7 +118,7 @@ export const signalloststationScenario = {
         "각 모듈의 접근 기록, 장비 사용 순서, 이동 방향의 흔적을 조합해 마지막 순간의 흐름을 추적한다."
       ],
 
-      preferredTags: ["action", "movement", "change", "signal"],
+      preferredTags: ["action", "change", "signal"],
       preferredPos: ["verb", "noun"],
 
       successTextPool: [
@@ -196,7 +196,7 @@ export const signalloststationScenario = {
         "반복되는 오류 코드, 불완전한 교신 파편, 암호화된 개인 메모를 이어 붙여 마지막 순간에 그들이 무엇을 알고 있었는지 파악하려 한다."
       ],
 
-      preferredTags: ["concept", "signal", "emotion", "failure"],
+      preferredTags: ["concept", "signal", "emotion", "danger"],
       preferredPos: ["noun", "adjective"],
 
       successTextPool: [
