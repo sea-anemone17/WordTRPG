@@ -1,4 +1,7 @@
 import { initData, getData } from "../storage.js";
+import { scenarios } from "../../scenarios/index.js";
+
+let gameState = null;
 
 function getElements() {
   return {
@@ -6,7 +9,17 @@ function getElements() {
     sectionSelect: document.getElementById("trpgSectionSelect"),
     scenarioSelect: document.getElementById("scenarioSelect"),
     difficultySelect: document.getElementById("difficultySelect"),
-    startBtn: document.getElementById("startScenarioBtn")
+    startBtn: document.getElementById("startScenarioBtn"),
+    restartBtn: document.getElementById("restartScenarioBtn"),
+
+    sceneCounter: document.getElementById("sceneCounter"),
+    clueCount: document.getElementById("clueCount"),
+    mistakeCount: document.getElementById("mistakeCount"),
+    scenarioStatus: document.getElementById("scenarioStatus"),
+
+    scenarioTitle: document.getElementById("scenarioTitle"),
+    scenarioIntroBox: document.getElementById("scenarioIntroBox"),
+    sceneBox: document.getElementById("sceneBox")
   };
 }
 
@@ -14,12 +27,8 @@ function renderBooks(bookSelect, data) {
   bookSelect.innerHTML = "";
 
   const books = data.books || [];
-
-  if (books.length === 0) {
-    const opt = document.createElement("option");
-    opt.value = "";
-    opt.textContent = "책 없음";
-    bookSelect.appendChild(opt);
+  if (!books.length) {
+    bookSelect.innerHTML = `<option value="">책 없음</option>`;
     return;
   }
 
@@ -38,11 +47,8 @@ function renderSections(sectionSelect, data, bookId) {
     .filter((section) => section.bookId === bookId)
     .sort((a, b) => (a.order || 0) - (b.order || 0));
 
-  if (sections.length === 0) {
-    const opt = document.createElement("option");
-    opt.value = "";
-    opt.textContent = "섹션 없음";
-    sectionSelect.appendChild(opt);
+  if (!sections.length) {
+    sectionSelect.innerHTML = `<option value="">섹션 없음</option>`;
     return;
   }
 
@@ -55,19 +61,9 @@ function renderSections(sectionSelect, data, bookId) {
 }
 
 function renderScenarios(scenarioSelect) {
-  if (!scenarioSelect) return;
-
   scenarioSelect.innerHTML = "";
 
-  const demoScenarios = [
-    { id: "closed-corridor", title: "닫힌 복도" },
-    { id: "archive-beneath-dust", title: "먼지 아래의 기록보관소" },
-    { id: "signal-lost-station", title: "신호가 끊긴 역" },
-    { id: "city-noise-walk", title: "도시의 소음 산책" },
-    { id: "forest-unmarked-path", title: "표식 없는 숲길" }
-  ];
-
-  demoScenarios.forEach((scenario) => {
+  scenarios.forEach((scenario) => {
     const opt = document.createElement("option");
     opt.value = scenario.id;
     opt.textContent = scenario.title;
@@ -76,13 +72,136 @@ function renderScenarios(scenarioSelect) {
 }
 
 function renderDifficulties(difficultySelect) {
-  if (!difficultySelect) return;
-
   difficultySelect.innerHTML = `
     <option value="easy">Easy</option>
     <option value="normal">Normal</option>
     <option value="hard">Hard</option>
   `;
+}
+
+function getScenarioById(scenarioId) {
+  return scenarios.find((scenario) => scenario.id === scenarioId) || null;
+}
+
+function createGameState({ bookId, sectionId, scenarioId, difficulty }) {
+  return {
+    bookId,
+    sectionId,
+    scenarioId,
+    difficulty,
+    sceneIndex: 0,
+    clues: 0,
+    mistakes: 0,
+    ended: false
+  };
+}
+
+function updateStats(els) {
+  if (!gameState) return;
+
+  const scenario = getScenarioById(gameState.scenarioId);
+  const maxTurns = scenario?.loopConfig?.maxTurns ?? 0;
+
+  if (els.sceneCounter) {
+    els.sceneCounter.textContent = `${gameState.sceneIndex + 1} / ${maxTurns}`;
+  }
+  if (els.clueCount) {
+    els.clueCount.textContent = String(gameState.clues);
+  }
+  if (els.mistakeCount) {
+    els.mistakeCount.textContent = String(gameState.mistakes);
+  }
+  if (els.scenarioStatus) {
+    els.scenarioStatus.textContent = gameState.ended ? "종결" : "진행 중";
+  }
+}
+
+function renderIntro(els) {
+  if (!gameState) return;
+
+  const scenario = getScenarioById(gameState.scenarioId);
+  if (!scenario) return;
+
+  if (els.scenarioTitle) {
+    els.scenarioTitle.textContent = scenario.title;
+  }
+
+  if (els.scenarioIntroBox) {
+    els.scenarioIntroBox.innerHTML = `<p>${scenario.intro}</p>`;
+  }
+}
+
+function renderActionMenu(els) {
+  if (!gameState) return;
+
+  const scenario = getScenarioById(gameState.scenarioId);
+  if (!scenario || !els.sceneBox) return;
+
+  const buttonsHtml = (scenario.actionTypes || [])
+    .map(
+      (action) => `
+        <button class="button" type="button" data-action-id="${action.id}">
+          ${action.label}
+        </button>
+      `
+    )
+    .join("");
+
+  els.sceneBox.innerHTML = `
+    <h3>첫 장면</h3>
+    <p>어떤 방식으로 조사할지 선택하세요.</p>
+    <div class="button-row">${buttonsHtml}</div>
+  `;
+}
+
+function startScenario(els) {
+  const bookId = els.bookSelect?.value || "";
+  const sectionId = els.sectionSelect?.value || "";
+  const scenarioId = els.scenarioSelect?.value || "";
+  const difficulty = els.difficultySelect?.value || "easy";
+
+  if (!bookId || !sectionId || !scenarioId) {
+    alert("책, 섹션, 시나리오를 모두 선택해 주세요.");
+    return;
+  }
+
+  gameState = createGameState({
+    bookId,
+    sectionId,
+    scenarioId,
+    difficulty
+  });
+
+  updateStats(els);
+  renderIntro(els);
+  renderActionMenu(els);
+}
+
+function handleActionClick(event, els) {
+  const button = event.target.closest("button[data-action-id]");
+  if (!button || !gameState) return;
+
+  const actionId = button.dataset.actionId;
+  const scenario = getScenarioById(gameState.scenarioId);
+  const action = scenario?.actionTypes?.find((item) => item.id === actionId);
+
+  if (!action) return;
+
+  // 아직 word event 전 단계이므로, 일단 저널 느낌의 장면만 출력
+  els.sceneBox.innerHTML = `
+    <h3>${action.label}</h3>
+    <p>${action.description || "조사를 진행합니다."}</p>
+    <div class="button-row">
+      <button class="button primary" type="button" id="backToActionsBtn">다시 행동 선택</button>
+    </div>
+  `;
+
+  const backBtn = document.getElementById("backToActionsBtn");
+  if (backBtn) {
+    backBtn.addEventListener("click", () => {
+      renderActionMenu(els);
+    });
+  }
 }
 
 async function init() {
@@ -91,16 +210,13 @@ async function init() {
   const els = getElements();
   const data = getData();
 
-  if (!els.bookSelect || !els.sectionSelect) {
-    alert("책/섹션 select를 찾을 수 없습니다.");
+  if (!els.bookSelect || !els.sectionSelect || !els.sceneBox) {
+    alert("TRPG 필수 요소를 찾을 수 없습니다.");
     return;
   }
 
   renderBooks(els.bookSelect, data);
-
-  const firstBookId = els.bookSelect.value;
-  renderSections(els.sectionSelect, data, firstBookId);
-
+  renderSections(els.sectionSelect, data, els.bookSelect.value);
   renderScenarios(els.scenarioSelect);
   renderDifficulties(els.difficultySelect);
 
@@ -110,16 +226,20 @@ async function init() {
 
   if (els.startBtn) {
     els.startBtn.addEventListener("click", () => {
-      alert(
-        [
-          `책: ${els.bookSelect.value || "(없음)"}`,
-          `섹션: ${els.sectionSelect.value || "(없음)"}`,
-          `시나리오: ${els.scenarioSelect?.value || "(없음)"}`,
-          `난이도: ${els.difficultySelect?.value || "(없음)"}`
-        ].join("\n")
-      );
+      startScenario(els);
     });
   }
+
+  if (els.restartBtn) {
+    els.restartBtn.addEventListener("click", () => {
+      if (!gameState) return;
+      startScenario(els);
+    });
+  }
+
+  els.sceneBox.addEventListener("click", (event) => {
+    handleActionClick(event, els);
+  });
 }
 
 init();
