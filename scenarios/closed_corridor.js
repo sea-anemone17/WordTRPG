@@ -40,7 +40,7 @@ export const closedCorridorScenario = {
           "당신은 움직임보다 멈춰 있는 것들에 주목하며, 오래 눌러앉은 인상을 조심스럽게 더듬기 시작한다."
         ],
 
-        preferredTags: ["place", "atmosphere", "quality", "object"],
+        preferredTags: ["space", "atmosphere", "object", "sense"],
         preferredPos: ["noun", "adjective"],
 
         successTextPool: [
@@ -118,7 +118,7 @@ export const closedCorridorScenario = {
           "당신은 정적인 공간을 하나의 사건 현장처럼 보고, 눈앞의 변화들이 어떤 행위를 암시하는지 따라가려 한다."
         ],
 
-        preferredTags: ["action", "change", "relation", "movement"],
+        preferredTags: ["action", "change", "relation"],
         preferredPos: ["verb"],
 
         successTextPool: [
@@ -196,7 +196,7 @@ export const closedCorridorScenario = {
           "당신은 조각난 텍스트를 하나의 이야기처럼 다루며, 지워진 것보다 남겨진 것이 더 많이 말하는지 살피려 한다."
         ],
 
-        preferredTags: ["concept", "emotion", "feeling", "document"],
+        preferredTags: ["concept", "emotion", "thought", "document"],
         preferredPos: ["noun", "adjective"],
 
         successTextPool: [
