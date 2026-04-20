@@ -1,32 +1,44 @@
-import { initData, getData, getWordById, addStudyRecord } from '../core/storage.js';
+import {
+  initData,
+  getData,
+  getSectionEntries,
+  addStudyRecord
+} from '../core/storage.js';
 import { getCurrentUser } from '../core/supabase.js';
-import { escapeHtml } from '../core/utils.js';
+import { escapeHtml, normalizeText } from '../core/utils.js';
 import { getPosLabel, getToneLabel } from '../core/tags.js';
 import { scenarios } from '../../scenarios/index.js';
-import { pickEventText } from '../core/events.js'; // ← 추가
+import { pickEventText } from '../core/events.js';
 
 const authGuard = document.getElementById('trpg-auth-guard');
 const app = document.getElementById('trpg-app');
+
 const bookSelect = document.getElementById('trpgBookSelect');
 const sectionSelect = document.getElementById('trpgSectionSelect');
 const scenarioSelect = document.getElementById('scenarioSelect');
+
 const startBtn = document.getElementById('startScenarioBtn');
 const restartBtn = document.getElementById('restartScenarioBtn');
+
 const titleEl = document.getElementById('scenarioTitle');
 const introBox = document.getElementById('scenarioIntroBox');
 const sceneBox = document.getElementById('sceneBox');
+
 const wordEventBox = document.getElementById('wordEventBox');
 const wordText = document.getElementById('trpgWordText');
 const wordMeta = document.getElementById('trpgWordMeta');
-const eventText = document.getElementById('trpgEventText'); // ← 추가 (HTML에도 추가 필요, 아래 설명 참고)
+const eventText = document.getElementById('trpgEventText');
+
 const answerForm = document.getElementById('trpgAnswerForm');
 const answerInput = document.getElementById('trpgAnswerInput');
 const showAnswerBtn = document.getElementById('trpgShowAnswerBtn');
 const resultBox = document.getElementById('trpgResultBox');
+
 const sceneCounter = document.getElementById('sceneCounter');
 const clueCount = document.getElementById('clueCount');
 const mistakeCount = document.getElementById('mistakeCount');
 const scenarioStatus = document.getElementById('scenarioStatus');
+
 const journalBox = document.getElementById('journalBox');
 const endingBox = document.getElementById('endingBox');
 const endingText = document.getElementById('endingText');
@@ -37,49 +49,90 @@ const state = {
   clues: 0,
   mistakes: 0,
   currentWordId: null,
+  currentEntryId: null,
+  currentEntry: null,
   ended: false,
   journal: [],
-  recentWordIds: [] // ← 추가: 최근 나온 단어 추적용
+  recentEntryIds: []
 };
+
+/* =========================
+   Helpers
+========================= */
 
 function currentScenario() {
   return scenarios.find((scenario) => scenario.id === state.scenarioId) || null;
 }
 
+function sectionEntries() {
+  return getSectionEntries(sectionSelect.value);
+}
+
+function getCurrentEntry() {
+  return state.currentEntry || null;
+}
+
+function getMaxRecentCount(total) {
+  return Math.max(3, Math.floor(total / 2));
+}
+
+function normalizeAnswer(text) {
+  return normalizeText(String(text || ''));
+}
+
+/* =========================
+   Selectors
+========================= */
+
 function renderSelectors() {
   const data = getData();
-  bookSelect.innerHTML = data.books.map((book) => `<option value="${book.id}">${escapeHtml(book.title)}</option>`).join('') || '<option value="">책 없음</option>';
+
+  bookSelect.innerHTML =
+    data.books
+      .map((book) => `<option value="${book.id}">${escapeHtml(book.title)}</option>`)
+      .join('') || '<option value="">책 없음</option>';
+
   renderSections();
-  scenarioSelect.innerHTML = scenarios.map((scenario) => `<option value="${scenario.id}">${escapeHtml(scenario.title)}</option>`).join('');
+
+  scenarioSelect.innerHTML = scenarios
+    .map((scenario) => `<option value="${scenario.id}">${escapeHtml(scenario.title)}</option>`)
+    .join('');
 }
 
 function renderSections() {
-  const sections = getData().sections.filter((section) => section.bookId === bookSelect.value).sort((a,b)=>a.order-b.order);
-  sectionSelect.innerHTML = sections.map((section) => `<option value="${section.id}">${escapeHtml(section.title)}</option>`).join('') || '<option value="">섹션 없음</option>';
+  const sections = getData().sections
+    .filter((section) => section.bookId === bookSelect.value)
+    .sort((a, b) => a.order - b.order);
+
+  sectionSelect.innerHTML =
+    sections
+      .map((section) => `<option value="${section.id}">${escapeHtml(section.title)}</option>`)
+      .join('') || '<option value="">섹션 없음</option>';
 }
 
-function sectionWords() {
-  return getData().words.filter((word) => word.sectionId === sectionSelect.value);
+/* =========================
+   Entry picking
+========================= */
+
+function pickEntry() {
+  const entries = sectionEntries();
+  if (!entries.length) return null;
+
+  const recentIds = new Set(state.recentEntryIds);
+  const fresh = entries.filter((entry) => !recentIds.has(entry.entryId));
+  const pool = fresh.length ? fresh : entries;
+
+  const entry = pool[Math.floor(Math.random() * pool.length)];
+  const maxRecent = getMaxRecentCount(entries.length);
+
+  state.recentEntryIds = [...state.recentEntryIds, entry.entryId].slice(-maxRecent);
+
+  return entry;
 }
 
-// ── 수정된 pickWord: 최근 나온 단어를 제외하고 골고루 뽑음 ──
-function pickWord() {
-  const words = sectionWords();
-  if (!words.length) return null;
-
-  const recentIds = new Set(state.recentWordIds);
-  const fresh = words.filter((w) => !recentIds.has(w.id));
-
-  // 안 나온 단어가 있으면 그쪽에서, 없으면 전체에서 뽑기
-  const pool = fresh.length ? fresh : words;
-  const word = pool[Math.floor(Math.random() * pool.length)];
-
-  // 최근 목록 업데이트 (최대 단어 총 수의 절반까지 기억, 최소 3개)
-  const maxRecent = Math.max(3, Math.floor(words.length / 2));
-  state.recentWordIds = [...state.recentWordIds, word.id].slice(-maxRecent);
-
-  return word;
-}
+/* =========================
+   Rendering
+========================= */
 
 function renderJournal() {
   journalBox.innerHTML = state.journal.length
@@ -87,129 +140,210 @@ function renderJournal() {
     : '<div class="empty-state">아직 기록이 없습니다.</div>';
 }
 
-function renderScene() {
-  const scenario = currentScenario();
-  if (!scenario) return;
-  titleEl.textContent = scenario.title;
-  introBox.innerHTML = `<p>${escapeHtml(scenario.intro)}</p>`;
-  const scene = scenario.scenes[state.sceneIndex];
-  if (!scene) return;
-  sceneBox.innerHTML = `<strong>${escapeHtml(scene.title)}</strong><div class="muted" style="margin-top:6px;">${escapeHtml(scene.text)}</div><div class="small-actions" style="margin-top:12px;"><button id="sceneActionBtn" class="button primary" type="button">${escapeHtml(scene.actionLabel)}</button></div>`;
-  sceneBox.querySelector('#sceneActionBtn')?.addEventListener('click', startWordEvent);
-}
-
 function renderStats() {
   const scenario = currentScenario();
-  sceneCounter.textContent = `${Math.min(state.sceneIndex + 1, scenario?.scenes.length || 0)} / ${scenario?.scenes.length || 0}`;
+  const totalScenes = scenario?.scenes.length || 0;
+
+  sceneCounter.textContent = `${Math.min(state.sceneIndex + 1, totalScenes)} / ${totalScenes}`;
   clueCount.textContent = String(state.clues);
   mistakeCount.textContent = String(state.mistakes);
   scenarioStatus.textContent = state.ended ? '종결' : '진행 중';
 }
 
-// ── 수정된 startWordEvent: 이벤트 텍스트를 태그+품사 기반으로 생성 ──
-function startWordEvent() {
-  const word = pickWord();
-  if (!word) {
-    alert('이 섹션에 단어가 없습니다.');
+function renderScene() {
+  const scenario = currentScenario();
+  if (!scenario) return;
+
+  titleEl.textContent = scenario.title;
+  introBox.innerHTML = `<p>${escapeHtml(scenario.intro)}</p>`;
+
+  const scene = scenario.scenes[state.sceneIndex];
+  if (!scene) {
+    sceneBox.innerHTML = `<div class="empty-state">장면이 없습니다.</div>`;
     return;
   }
-  state.currentWordId = word.id;
-  wordText.textContent = word.word;
-  wordMeta.textContent = `${getPosLabel(word.pos)} · ${getToneLabel(word.tone)}`;
 
-  // 이벤트 텍스트 생성 후 {word} 치환
-  const raw = pickEventText(word.pos, word.tags);
-  const filled = raw.replace(/\{word\}/g, word.word);
-  if (eventText) eventText.textContent = filled;
+  sceneBox.innerHTML = `
+    <strong>${escapeHtml(scene.title)}</strong>
+    <div class="muted" style="margin-top:6px;">${escapeHtml(scene.text)}</div>
+    <div class="small-actions" style="margin-top:12px;">
+      <button id="sceneActionBtn" class="button primary" type="button">${escapeHtml(scene.actionLabel)}</button>
+    </div>
+  `;
 
+  sceneBox.querySelector('#sceneActionBtn')?.addEventListener('click', startWordEvent);
+}
+
+function clearWordEventUi() {
   resultBox.className = 'result-box';
   resultBox.textContent = '';
   answerInput.value = '';
+}
+
+function renderWordEvent(entry) {
+  wordText.textContent = entry.headword;
+  wordMeta.textContent = `${getPosLabel(entry.pos)} · ${getToneLabel(entry.tone)}`;
+
+  const rawEventText = pickEventText(entry.pos, entry.tags || []);
+  const filledEventText = String(rawEventText || '').replace(/\{word\}/g, entry.headword);
+
+  if (eventText) {
+    eventText.textContent = filledEventText;
+  }
+
+  clearWordEventUi();
   wordEventBox.classList.remove('hidden');
 }
 
+function hideWordEvent() {
+  wordEventBox.classList.add('hidden');
+  clearWordEventUi();
+}
+
+/* =========================
+   Scenario flow
+========================= */
+
+function startWordEvent() {
+  const entry = pickEntry();
+
+  if (!entry) {
+    alert('이 섹션에 단어가 없습니다.');
+    return;
+  }
+
+  state.currentWordId = entry.wordId;
+  state.currentEntryId = entry.entryId;
+  state.currentEntry = entry;
+
+  renderWordEvent(entry);
+}
+
 function finishStep(correct) {
-  const word = getWordById(state.currentWordId);
-  if (!word) return;
+  const entry = getCurrentEntry();
+  if (!entry) return;
+
   addStudyRecord({
-    wordId: word.id,
+    wordId: entry.wordId,
+    entryId: entry.entryId,
     userAnswer: answerInput.value.trim(),
     autoJudgedCorrect: correct,
     finalCorrect: correct,
     source: 'trpg'
   });
+
   if (correct) {
     state.clues += 1;
-    state.journal.push(`장면 ${state.sceneIndex + 1}: ${escapeHtml(word.word)} 해석 성공`);
+    state.journal.push(
+      `장면 ${state.sceneIndex + 1}: ${escapeHtml(entry.headword)} (${escapeHtml(getPosLabel(entry.pos))}) 해석 성공`
+    );
   } else {
     state.mistakes += 1;
-    state.journal.push(`장면 ${state.sceneIndex + 1}: ${escapeHtml(word.word)} 해석 실패`);
+    state.journal.push(
+      `장면 ${state.sceneIndex + 1}: ${escapeHtml(entry.headword)} (${escapeHtml(getPosLabel(entry.pos))}) 해석 실패`
+    );
   }
+
   state.sceneIndex += 1;
   state.currentWordId = null;
-  wordEventBox.classList.add('hidden');
+  state.currentEntryId = null;
+  state.currentEntry = null;
+
+  hideWordEvent();
 
   const scenario = currentScenario();
-  if (state.sceneIndex >= scenario.scenes.length) {
+  if (state.sceneIndex >= (scenario?.scenes.length || 0)) {
     state.ended = true;
     endingBox.classList.remove('hidden');
-    endingText.innerHTML = correct || state.clues >= state.mistakes
-      ? `<p>기록을 복원했습니다. 단서 ${state.clues}개, 오해 ${state.mistakes}개.</p>`
-      : `<p>사건은 해결했지만 오해가 많이 남았습니다. 단서 ${state.clues}개, 오해 ${state.mistakes}개.</p>`;
+
+    endingText.innerHTML =
+      correct || state.clues >= state.mistakes
+        ? `<p>기록을 복원했습니다. 단서 ${state.clues}개, 오해 ${state.mistakes}개.</p>`
+        : `<p>사건은 해결했지만 오해가 많이 남았습니다. 단서 ${state.clues}개, 오해 ${state.mistakes}개.</p>`;
   }
+
   renderStats();
   renderScene();
   renderJournal();
 }
 
-answerForm.addEventListener('submit', (event) => {
-  event.preventDefault();
-  const word = getWordById(state.currentWordId);
-  if (!word) return;
-  const answer = answerInput.value.trim();
-  const correct = word.meanings.some((meaning) => meaning.trim().toLowerCase() === answer.trim().toLowerCase());
+function judgeCurrentAnswer(answer) {
+  const entry = getCurrentEntry();
+  if (!entry) return;
+
+  const normalized = normalizeAnswer(answer);
+  const correct = entry.meanings.some(
+    (meaning) => normalizeAnswer(meaning) === normalized
+  );
+
   resultBox.className = `result-box ${correct ? 'success' : 'fail'}`;
   resultBox.innerHTML = correct
     ? '정답입니다. 다음 장면으로 이동합니다.'
-    : `오답입니다. 정답: ${word.meanings.map((item) => escapeHtml(item)).join(', ')}`;
-  setTimeout(() => finishStep(correct), 400);
-});
+    : `오답입니다. 정답: ${entry.meanings.map((item) => escapeHtml(item)).join(', ')}`;
 
-showAnswerBtn.addEventListener('click', () => {
-  const word = getWordById(state.currentWordId);
-  if (!word) return;
+  setTimeout(() => finishStep(correct), 400);
+}
+
+function showAnswer() {
+  const entry = getCurrentEntry();
+  if (!entry) return;
+
   resultBox.className = 'result-box';
-  resultBox.innerHTML = `정답: ${word.meanings.map((item) => escapeHtml(item)).join(', ')}`;
-});
+  resultBox.innerHTML = `정답: ${entry.meanings.map((item) => escapeHtml(item)).join(', ')}`;
+}
 
 function startScenario() {
   if (!bookSelect.value || !sectionSelect.value || !scenarioSelect.value) return;
+
   state.scenarioId = scenarioSelect.value;
   state.sceneIndex = 0;
   state.clues = 0;
   state.mistakes = 0;
   state.currentWordId = null;
+  state.currentEntryId = null;
+  state.currentEntry = null;
   state.ended = false;
   state.journal = [];
-  state.recentWordIds = []; // ← 추가: 시나리오 시작 시 초기화
+  state.recentEntryIds = [];
+
   endingBox.classList.add('hidden');
+  hideWordEvent();
   renderStats();
   renderScene();
   renderJournal();
 }
 
+/* =========================
+   Events
+========================= */
+
+answerForm.addEventListener('submit', (event) => {
+  event.preventDefault();
+  judgeCurrentAnswer(answerInput.value.trim());
+});
+
+showAnswerBtn.addEventListener('click', showAnswer);
+
 startBtn.addEventListener('click', startScenario);
 restartBtn.addEventListener('click', startScenario);
 bookSelect.addEventListener('change', renderSections);
 
+/* =========================
+   Init
+========================= */
+
 (async function init() {
   const user = await getCurrentUser();
+
   if (!user) {
     authGuard.classList.remove('hidden');
     return;
   }
+
   await initData();
+
   app.classList.remove('hidden');
   renderSelectors();
+  renderStats();
   renderJournal();
 })();
